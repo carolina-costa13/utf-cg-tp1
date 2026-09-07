@@ -7,6 +7,21 @@ let texturaVeneno
 let texturaSpray
 let texturaLagarto
 let texturaBesouro
+let texturaMosca
+let frameMosca = 0
+let tempoAnimacaoMosca = 0
+let frameFormiga = 0
+let tempoAnimacaoFormiga = 0
+let texturaSapo
+let frameLingua = 0
+let tempoAnimacaoLingua = 0
+let tempoAnimacaoLagarto=0
+let frameLagarto=0
+let frameBesouro = 0
+let tempoAnimacaoBesouro = 0
+let texturaMoeda
+let frameMoeda = 0
+let tempoAnimacaoMoeda = 0
 
 const gl = configuraTudo()
 let logoAntes = 0
@@ -159,6 +174,9 @@ carregaTexturaVeneno(gl)
 carregaTexturaSpray(gl)
 carregaTexturaLagarto(gl)
 carregaTexturaBesouro(gl)
+carregaTexturaMosca(gl)
+carregaTexturaSapo(gl)
+carregaTexturaMoeda(gl)
 
   // 5. inicia valores para variáveis de estado
     gl.clearColor(1, 0, 0, 1) // cor borracha: branco
@@ -168,11 +186,13 @@ carregaTexturaBesouro(gl)
 }
 
 function atualizaLogica(quantoTempo) {
-  // altera o estado da aplicação, e.g.:
-  // - movimenta inimigos, jogador, projéteis
-  // - verificar estado do teclado, e.g.: 
-  //        (↑ abaixada? andar pra frente)
-  // - movimenta câmera
+  animacaoMosca(quantoTempo)
+  animacaoFormiga(quantoTempo)
+  animacaoSapo(quantoTempo)
+  animacaoLagarto(quantoTempo)
+  animacaoBesouro(quantoTempo)
+  animacaoMoeda(quantoTempo)
+ 
 }
 
 function desenhaCena(gl) {
@@ -218,11 +238,28 @@ function desenhaCena(gl) {
         desenhaLagarto(gl)
     }
 
-      //wizard lizard 
+       
     if (texturaBesouro) {
         desenhaBesouro(gl)
     }
+
+    if (texturaMosca) {
+        desenhaMosca(gl)
+    }
+
+    if (texturaSapo) {
+        desenhaSapo(gl)
+    }
+
+     if (texturaMoeda) {
+        desenhaMoeda(gl)
+    }
 }
+
+//-----------------------------------------------------------------------------------------------------------------
+//                      CARREGAMENTO DE TEXTURA
+//-----------------------------------------------------------------------------------------------------------------
+
 
 function carregaTexturaCenario(gl){
 // (1) carrega a imagem
@@ -253,7 +290,7 @@ const image = new Image()
     console.error("Não foi possível carregar cenario.png")
 }
 
-image.src = 'assets/cenario.png'
+image.src = 'assets/cenarioMaior.png'
 
 }
 
@@ -281,7 +318,7 @@ const imagemBolo = new Image()
     console.error("Não foi possível carregar o bolo")
 }
 
-imagemBolo.src = "sprites/Cakes/cake01.png"
+imagemBolo.src = "sprites/Cakes/Cakes_Separated/NO_OUTLINE/BlackForest_Cake_NO_OUTLINE.png"
 }
 
 
@@ -362,7 +399,7 @@ const imagemLagarto = new Image()
     console.error("Não foi possível carregar o wizard lizard")
 }
 
-imagemLagarto.src = "sprites/lizard/Magescale_Lizard_06.png"
+imagemLagarto.src = "sprites/lizard/Lizard_Pack_1_Magescales_Preview.png"
 }
 
 function carregaTexturaFormiga(gl){
@@ -390,55 +427,129 @@ function carregaTexturaFormiga(gl){
 imagemFormiga.src = "sprites/Ants.png"
 }
 
-function carregaTexturaBesouro(gl){
-    const imagemBesouro = new Image()
+function carregaTexturaBesouro(gl) {
+  const imagemBesouro = new Image()
 
-    imagemBesouro.onload = function() {
-    console.log("Imagem carregada!")
+  // 1. Cria a estrutura da textura imediatamente para a variável não ficar undefined
+  texturaBesouro = gl.createTexture()
 
-    texturaBesouro = gl.createTexture()
+  imagemBesouro.onload = function() {
+    console.log("Imagem do besouro carregada!")
+
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, texturaBesouro)
 
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST)
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST)
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE)
-    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,imagemBesouro)
-    }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imagemBesouro)
+  }
 
   imagemBesouro.onerror = function() {
-    console.error("Não foi possível carregar o as formigas")
+    console.error("Não foi possível carregar o besouro no caminho: sprites/Bugs.png")
+  }
+
+  imagemBesouro.src = "sprites/Bugs.png"
 }
 
-imagemBesouro.src = "sprites/Bugs.png"
+
+function carregaTexturaMosca(gl) {
+  const imagemMosca = new Image()
+
+  imagemMosca.onload = function() {
+    console.log("Imagem da mosca carregada!")
+
+    texturaMosca = gl.createTexture()
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, texturaMosca)
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imagemMosca)
+  }
+
+  imagemMosca.onerror = function() {
+    console.error("Não foi possível carregar a mosca")
+  }
+
+  // Caminho da spritesheet de idle da mosca do pacote de assets
+  imagemMosca.src = "sprites/fly_monster_by_yurinikolai/fly_idle/spritesheet/fly_idle.png"
 }
+
+function carregaTexturaSapo(gl) {
+  const imagemSapo = new Image()
+  imagemSapo.onload = function() {
+    texturaSapo = gl.createTexture()
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, texturaSapo)
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imagemSapo)
+  }
+  imagemSapo.src = "sprites/Frog/frog.png"
+}
+
+function carregaTexturaMoeda(gl) {
+  const imagemMoeda = new Image()
+  texturaMoeda = gl.createTexture()
+
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texturaMoeda)
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]))
+
+  imagemMoeda.onload = function() {
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, texturaMoeda)
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imagemMoeda)
+  }
+
+  imagemMoeda.src = "sprites/coins/coin2_20x20.png"
+}
+//---------------------------------------------------------------------------------------------------------------
+//                  FUNÇOES DE DESENHO
+//-----------------------------------------------------------------------------------------------------------------
 
 function desenhaBolo(gl) {
+  // Posição do bolo
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+  gl.uniform2f(posicaoLoc, -0.65, 0.0)
 
-    // posição do bolo
-    const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+  // Tamanho do bolo na tela
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
+  gl.uniform2f(tamanhoLoc, 0.18, 0.17)
 
-    gl.uniform2f(posicaoLoc, -0.65,0.0)
+  // RESET DAS COORDENADAS DE TEXTURA (UV)
+  // Garante que a textura não usará o recorte do último sprite desenhado
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
+  gl.uniform2f(texOffsetLoc, 0.0, 0.0) // Começa do canto superior/esquerdo (0,0)
 
-    // tamanho do bolo
-    const tamanhoLoc =gl.getUniformLocation(programa, 'u_size')
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
+  gl.uniform2f(texSizeLoc, 1.0, 1.0) // Usa 100% da largura e altura da imagem
 
-    gl.uniform2f(tamanhoLoc,0.2,0.2)
+  // Seleciona e vincula a textura do bolo
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texturaBolo)
 
-    // seleciona a textura do bolo
-    gl.activeTexture(gl.TEXTURE0)
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
+  gl.uniform1i(texturaLoc, 0)
 
-    gl.bindTexture(gl.TEXTURE_2D,texturaBolo)
-
-    // informa ao shader que a textura está na unidade 0
-    const texturaLoc =gl.getUniformLocation(programa,'u_texture')
-
-    gl.uniform1i(texturaLoc,0)
-
-    // desenha o quadrado
-    gl.drawArrays(gl.TRIANGLE_STRIP,0,4)
+  // Desenha
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 }
 
 function desenhaCenario(gl){
@@ -473,47 +584,40 @@ function desenhaCenario(gl){
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4)
 }
 
-function desenhaFormiga(gl){
-  // posição da formiga
-    const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+function desenhaFormiga(gl) {
+  // Posição da formiga
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+  gl.uniform2f(posicaoLoc, 0.55, -0.10)
 
-    gl.uniform2f(posicaoLoc, 0.55,-0.10)
+  // Tamanho na tela
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
+  gl.uniform2f(tamanhoLoc, 0.16, 0.16)
 
-    // tamanho da formiga
-    const tamanhoLoc =gl.getUniformLocation(programa, 'u_size')
+  const larguraSprite = 1 / 12
+  const alturaSprite = 1 / 8
 
-    gl.uniform2f(tamanhoLoc,0.15,0.15)
+  // Configuração da variação/orientação da formiga
+  const colunaInicial = 0 // Coluna base da formiga desejada
+  const linha = 1         // Linha desejada na imagem
 
-    const larguraSprite = 1 / 12
-    const alturaSprite = 1 / 8
+  // O frameFormiga (0, 1 ou 2) é somado à coluna inicial
+  const colunaAtual = colunaInicial + frameFormiga
 
-    // primeira formiga
-    const coluna = 0
-    const linha = 1
+  // Envia as coordenadas UV dinâmicas para o Shader
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
+  gl.uniform2f(texOffsetLoc, colunaAtual * larguraSprite, linha * alturaSprite)
 
-    // posição dentro do spritesheet
-    const texOffsetLoc =gl.getUniformLocation(programa,'u_texOffset')
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
+  gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
 
-    gl.uniform2f(texOffsetLoc,coluna * larguraSprite,linha * alturaSprite)
+  // Ativa e desenha a textura
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texturaFormiga)
 
-    // tamanho do sprite
-    const texSizeLoc = gl.getUniformLocation(programa,'u_texSize')
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
+  gl.uniform1i(texturaLoc, 0)
 
-    gl.uniform2f(texSizeLoc,larguraSprite,alturaSprite)
-
-    // seleciona a textura da formiga
-    gl.activeTexture(gl.TEXTURE0)
-
-    gl.bindTexture(gl.TEXTURE_2D,texturaFormiga)
-
-    // informa ao shader que a textura está na unidade 0
-    const texturaLoc =gl.getUniformLocation(programa,'u_texture')
-
-    gl.uniform1i(texturaLoc,0)
-
-    // desenha o quadrado
-    gl.drawArrays(gl.TRIANGLE_STRIP,0,4)
-
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 }
 
 function desenhaVeneno(gl) {
@@ -560,7 +664,7 @@ function desenhaSpray(gl) {
     // tamanho do spray
     const tamanhoLoc =gl.getUniformLocation(programa, 'u_size')
 
-    gl.uniform2f(tamanhoLoc,0.20,0.20)
+    gl.uniform2f(tamanhoLoc,0.08,0.19)
 
      const texOffsetLoc =gl.getUniformLocation(programa,'u_texOffset')
      gl.uniform2f(texOffsetLoc,0.0,0.0)
@@ -584,80 +688,289 @@ function desenhaSpray(gl) {
 }
 
 function desenhaLagarto(gl) {
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+  gl.uniform2f(posicaoLoc, -0.35, 0.65)
 
-    // posição do lagarto
-    const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
+  gl.uniform2f(tamanhoLoc, 0.16, 0.16)
 
-    gl.uniform2f(posicaoLoc, -0.35,0.65)
+  const larguraSprite = 1 / 3
+  const alturaSprite = 1 / 4
 
-    // tamanho do lagarto
-    const tamanhoLoc =gl.getUniformLocation(programa, 'u_size')
+  // Mapeamento dos 4 quadros: [coluna, linha]
+  // Linha 0 = 1ª linha da imagem (topo)
+  // Linha 1 = 2ª linha da imagem
+  const sequenciaFrames = [
+    [0, 3], // 1º da 1ª linha
+    [1, 3], // 2º da 1ª linha
+    [2, 3], // 3º da 1ª linha
+    [0, 2]  // 1º da 2ª linha
+  ]
 
-    gl.uniform2f(tamanhoLoc,0.20,0.20)
+  const [coluna, linha] = sequenciaFrames[frameLagarto]
 
-     const texOffsetLoc =gl.getUniformLocation(programa,'u_texOffset')
-     gl.uniform2f(texOffsetLoc,0.0,0.0)
+  // EIXO X: Coluna do frame atual (0, 1 ou 2)
+  const posX = coluna * larguraSprite
 
-    const texSizeLoc =gl.getUniformLocation(programa,'u_texSize')
+  // EIXO Y: Inversão para WebGL (3 - linha)
+  const posY = (3 - linha) * alturaSprite
 
-    gl.uniform2f(texSizeLoc,1.0,1.0)
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
+  gl.uniform2f(texOffsetLoc, posX, posY)
 
-    // seleciona a textura do lagarto
-    gl.activeTexture(gl.TEXTURE0)
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
+  gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
 
-    gl.bindTexture(gl.TEXTURE_2D,texturaLagarto)
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texturaLagarto)
 
-    // informa ao shader que a textura está na unidade 0
-    const texturaLoc =gl.getUniformLocation(programa,'u_texture')
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
+  gl.uniform1i(texturaLoc, 0)
 
-    gl.uniform1i(texturaLoc,0)
-
-    // desenha o quadrado
-    gl.drawArrays(gl.TRIANGLE_STRIP,0,4)
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 }
 
-function desenhaBesouro(gl){
-  // posição do Besouro
-    const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+function desenhaBesouro(gl) {
+  // Posição desejada no canvas
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+  gl.uniform2f(posicaoLoc, 0.55, -0.30)
 
-    gl.uniform2f(posicaoLoc, 0.55,-0.30)
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
+  gl.uniform2f(tamanhoLoc, 0.15, 0.16)
 
-    // tamanho do besouro
-    const tamanhoLoc =gl.getUniformLocation(programa, 'u_size')
+  const larguraSprite = 1 / 12
+  const alturaSprite = 1 / 8
 
-    gl.uniform2f(tamanhoLoc,0.15,0.15)
+  // CONFIGURAÇÃO DO BESOURO:
+  // Coluna Inicial: 0 (Marrom Claro), 3 (Escuro), 6 (Verde), 9 (Vermelho)
+  // Linha Desejada na imagem:
+  // 0 = Olhando para cima
+  // 1 = Andando para a direita
+  // 2 = Andando para a esquerda
+  // 3 = Olhando para baixo
+  const colunaInicial = 6 // Besouro verde
+  const linhaDesejada = 6 // Andando para a direita
 
-    const larguraSprite = 1 / 12
-    const alturaSprite = 1 / 4
+  // EIXO X: Coluna inicial + passo da animação (0, 1 ou 2)
+  const posX = (colunaInicial + frameBesouro) * larguraSprite
 
-    
-    const coluna = 7
-    const linha = 1
+  const posY = 1.0 - ((linhaDesejada + 1) * alturaSprite)
 
-    // posição dentro do spritesheet
-    const texOffsetLoc =gl.getUniformLocation(programa,'u_texOffset')
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
+  gl.uniform2f(texOffsetLoc, posX, posY)
 
-    gl.uniform2f(texOffsetLoc,coluna * larguraSprite,linha * alturaSprite)
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
+  gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
 
-    // tamanho do sprite
-    const texSizeLoc = gl.getUniformLocation(programa,'u_texSize')
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texturaBesouro)
 
-    gl.uniform2f(texSizeLoc,larguraSprite,alturaSprite)
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
+  gl.uniform1i(texturaLoc, 0)
 
-    // seleciona a textura do besouro
-    gl.activeTexture(gl.TEXTURE0)
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+}
 
-    gl.bindTexture(gl.TEXTURE_2D,texturaBesouro)
+function desenhaMosca(gl) {
+  // Posição da mosca na tela
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+  gl.uniform2f(posicaoLoc, 0.0, 0.4) // x: 0.0 (centro), y: 0.4 (no alto)
 
-    // informa ao shader que a textura está na unidade 0
-    const texturaLoc =gl.getUniformLocation(programa,'u_texture')
+  // Tamanho do renderizador da mosca
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
+  gl.uniform2f(tamanhoLoc, 0.2, 0.2)
 
-    gl.uniform1i(texturaLoc,0)
+  // A spritesheet da mosca possui 16 quadros organizados horizontalmente
+  const totalFrames = 16
+  const larguraSprite = 1 / totalFrames
+  const alturaSprite = 1.0
 
-    // desenha o quadrado
-    gl.drawArrays(gl.TRIANGLE_STRIP,0,4)
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
+  gl.uniform2f(texOffsetLoc, frameMosca * larguraSprite, 0.0)
+
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
+  gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
+
+  // Seleciona a textura
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texturaMosca)
+
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
+  gl.uniform1i(texturaLoc, 0)
+
+  // Desenha
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+}
+
+function desenhaSapo(gl) {
+  const larguraTotal = 208
+  const alturaTotal = 192
+  const alturaFramePixels = 16
+
+  const posXSapo = -0.5
+  const posYSapo = -0.4
+
+  const linhaLinguaPixel = 2
+  // O ataque da língua completa fica a partir do pixel 48 (coluna 3)
+  const colunaInicialPixel = 3 * 16 
+
+  let larguraFramePixels = 16
+  let larguraTela = 0.16
+  let offsetXCanvas = 0.0
+  let offsetFrameX = 0
+
+  // Ajusta proporcionalmente de acordo com a extensão do frame
+  if (frameLingua === 0) {
+    larguraFramePixels = 16
+    larguraTela = 0.16
+    offsetFrameX = 0
+  } else if (frameLingua === 1) {
+    larguraFramePixels = 32 // Pega sapo + meia língua
+    larguraTela = 0.32
+    offsetFrameX = 16
+  } else if (frameLingua === 2) {
+    larguraFramePixels = 48 // Pega o sprite completo de 48px
+    larguraTela = 0.48
+    offsetFrameX = 32
+  }
+
+  // EIXO X (UV): Corta a largura exata necessária para a língua
+  const texWidth = larguraFramePixels / larguraTotal
+  const texHeight = alturaFramePixels / alturaTotal
+
+  const posXUV = (colunaInicialPixel + offsetFrameX) / larguraTotal
+  const posYUV = (alturaTotal - (linhaLinguaPixel + 1) * alturaFramePixels) / alturaTotal
+
+  // EIXO X (Canvas): Compensa a largura extra para o corpo não "pular" para a direita
+  // Como o retângulo cresce a partir do centro, movemos metade da largura extra para a direita
+  const ajusteCentro = (larguraTela - 0.16) / 2
+
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+  gl.uniform2f(posicaoLoc, posXSapo + ajusteCentro, posYSapo)
+
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
+  gl.uniform2f(tamanhoLoc, larguraTela, 0.16)
+
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
+  gl.uniform2f(texOffsetLoc, posXUV, posYUV)
+
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
+  gl.uniform2f(texSizeLoc, texWidth, texHeight)
+
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texturaSapo)
+
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
+  gl.uniform1i(texturaLoc, 0)
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+}
+
+function desenhaMoeda(gl) {
+  // Posição no canvas (Ajuste onde deseja colocar a moeda)
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+  gl.uniform2f(posicaoLoc, 0.0, 0.2) 
+
+  // Tamanho no Canvas (1:1 de proporção para manter quadrada)
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
+  gl.uniform2f(tamanhoLoc, 0.10, 0.10)
+
+  // DIMENSÕES DA SPRITE SHEET
+  const larguraTotal = 180 // 9 frames x 20px
+  const alturaTotal = 20
+  
+  const larguraFrame = 20
+  const alturaFrame = 20
+
+  // Cálculo UV em pixels (linha única, então Y sempre começa na base)
+  const pixelX = frameMoeda * larguraFrame
+  const pixelY = 0 
+
+  const posXUV = pixelX / larguraTotal
+  const posYUV = pixelY / alturaTotal
+
+  const texWidth = larguraFrame / larguraTotal  // 20 / 180 = 0.1111
+  const texHeight = alturaFrame / alturaTotal  // 20 / 20 = 1.0
+
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
+  gl.uniform2f(texOffsetLoc, posXUV, posYUV)
+
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
+  gl.uniform2f(texSizeLoc, texWidth, texHeight)
+
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texturaMoeda)
+
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
+  gl.uniform1i(texturaLoc, 0)
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+}
+//---------------------------------------------------------------------------------------------------------------
+//                          ANIMAÇÕES
+//---------------------------------------------------------------------------------------------------------------
+
+function animacaoMosca(quantoTempo){
+ tempoAnimacaoMosca += quantoTempo
+
+  // Troca de frame a cada 0.08 segundos (16 frames no total da animação idle)
+  if (tempoAnimacaoMosca >= 0.08) {
+    frameMosca = (frameMosca + 1) % 16
+    tempoAnimacaoMosca = 0
+  }
+}
+
+function animacaoFormiga(quantoTempo){
+    tempoAnimacaoFormiga += quantoTempo
+
+  // Troca de quadro a cada 0.15 segundos
+  if (tempoAnimacaoFormiga >= 0.15) {
+    frameFormiga = (frameFormiga + 1) % 3 // Cicla entre os quadros 0, 1 e 2
+    tempoAnimacaoFormiga = 0
+  }
 
 }
+
+function animacaoSapo(quantoTempo) {
+  tempoAnimacaoLingua += quantoTempo
+
+  // Troca de quadro a cada 0.10 segundos
+  if (tempoAnimacaoLingua >= 0.5) {
+    frameLingua = (frameLingua + 1) % 2 // Cicla continuamente entre 0, 1 e 2
+    tempoAnimacaoLingua = 0
+  }
+}
+
+function animacaoLagarto(quantoTempo){
+    tempoAnimacaoLagarto += quantoTempo
+
+    if (tempoAnimacaoLagarto >= 0.3) {
+    frameLagarto = (frameLagarto + 1) % 4 // Cicla entre as 3 colunas (0, 1 e 2)
+    tempoAnimacaoLagarto = 0
+  }
+}
+
+function animacaoBesouro(quantoTempo) {
+  tempoAnimacaoBesouro += quantoTempo
+
+  // Troca de quadro a cada 0.12 segundos
+  if (tempoAnimacaoBesouro >= 0.12) {
+    frameBesouro = (frameBesouro + 1) % 3 // Cicla entre 0, 1 e 2
+    tempoAnimacaoBesouro = 0
+  }
+}
+
+function animacaoMoeda(quantoTempo) {
+  tempoAnimacaoMoeda += quantoTempo
+
+  // Troca de quadro a cada 0.12 segundos
+  if (tempoAnimacaoMoeda >= 0.12) {
+    frameMoeda = (frameMoeda + 1) % 9 // Cicla entre 0, 1, 2, 3, 4, 5, 6, 7, 8
+    tempoAnimacaoMoeda = 0
+  }
+}
+
+
 
 
 
