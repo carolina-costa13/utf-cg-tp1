@@ -5,7 +5,13 @@ import {
   frameLagarto, 
   frameBesouro, 
   frameLingua, 
-  frameFormigaVermelha 
+  frameFormigaVermelha,  
+  moscaViva,
+  besouroVivo,
+  formigasAtivas,
+  formigasVermelhasAtivas,
+  besourosAtivos
+
 } from './animations.js';
 
 
@@ -19,7 +25,8 @@ import {
   texturaBesouro, 
   texturaMosca, 
   texturaSapo, 
-  texturaMoeda 
+  texturaMoeda, 
+  texturaFormigaVermelha
 } from './textures.js';
 
 import { programa } from './glSetup.js';
@@ -85,41 +92,41 @@ export function desenhaCenario(gl){
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4)
 }
 
+
 export function desenhaFormiga(gl) {
-  // Posição da formiga
-  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
-  gl.uniform2f(posicaoLoc, 0.55, -0.10)
+  if (formigasAtivas.length === 0) return;
 
-  // Tamanho na tela
-  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
-  gl.uniform2f(tamanhoLoc, 0.16, 0.16)
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
 
-  const larguraSprite = 1 / 12
-  const alturaSprite = 1 / 8
+  const larguraSprite = 1 / 12;
+  const alturaSprite = 1 / 8;
 
-  // Configuração da variação/orientação da formiga
-  const colunaInicial = 0 // Coluna base da formiga desejada
-  const linha = 1         // Linha desejada na imagem
+  // Usa o índice direto da linha (sem subtracção)
+  const linha = 1; 
 
-  // O frameFormiga (0, 1 ou 2) é somado à coluna inicial
-  const colunaAtual = colunaInicial + frameFormiga
+  const colunaInicial = 0; 
+  const colunaAtual = colunaInicial + (Math.abs(frameFormiga) % 3);
 
-  // Envia as coordenadas UV dinâmicas para o Shader
-  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
-  gl.uniform2f(texOffsetLoc, colunaAtual * larguraSprite, linha * alturaSprite)
+  gl.uniform2f(texOffsetLoc, colunaAtual * larguraSprite, linha * alturaSprite);
+  gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite);
+  gl.uniform2f(tamanhoLoc, 0.16, 0.16);
 
-  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
-  gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texturaFormiga);
+  gl.uniform1i(texturaLoc, 0);
 
-  // Ativa e desenha a textura
-  gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, texturaFormiga)
+  for (const formiga of formigasAtivas) {
+    if (!formiga.viva) continue;
 
-  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
-  gl.uniform1i(texturaLoc, 0)
-
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    gl.uniform2f(posicaoLoc, formiga.posX, formiga.posY);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
 }
+
 
 export function desenhaVeneno(gl) {
 
@@ -231,48 +238,61 @@ export function desenhaLagarto(gl) {
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 }
 
+
 export function desenhaBesouro(gl) {
-  // Posição desejada no canvas
-  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
-  gl.uniform2f(posicaoLoc, 0.55, -0.30)
+  // 1. Não tenta desenhar se não houver besouros ativos
+  if (!besourosAtivos || besourosAtivos.length === 0) {
+    return;
+  }
 
-  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
-  gl.uniform2f(tamanhoLoc, 0.15, 0.16)
+  // 2. Garante que o programa shader está ativo
+  if (typeof programa !== 'undefined') {
+    gl.useProgram(programa);
+  }
 
-  const larguraSprite = 1 / 12
-  const alturaSprite = 1 / 8
+  // Localizações dos uniformes do WebGL
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
+
+  // Dimensões do recorte da spritesheet (12 colunas x 8 linhas)
+  const larguraSprite = 1 / 12;
+  const alturaSprite = 1 / 8;
 
   // CONFIGURAÇÃO DO BESOURO:
-  // Coluna Inicial: 0 (Marrom Claro), 3 (Escuro), 6 (Verde), 9 (Vermelho)
-  // Linha Desejada na imagem:
-  // 0 = Olhando para cima
-  // 1 = Andando para a direita
-  // 2 = Andando para a esquerda
-  // 3 = Olhando para baixo
-  const colunaInicial = 6 // Besouro verde
-  const linhaDesejada = 6 // Andando para a direita
+  const colunaInicial = 6; // Besouro verde
+  const linhaDesejada = 6; // 2 = Andando para a esquerda (direção correta)
 
-  // EIXO X: Coluna inicial + passo da animação (0, 1 ou 2)
-  const posX = (colunaInicial + frameBesouro) * larguraSprite
+  // Vincula a textura do besouro
+  if (typeof texturaBesouro !== 'undefined' && texturaBesouro) {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texturaBesouro);
+    gl.uniform1i(texturaLoc, 0);
+  }
 
-  const posY = 1.0 - ((linhaDesejada + 1) * alturaSprite)
+  // Define o tamanho visual do besouro
+  gl.uniform2f(tamanhoLoc, 0.15, 0.16);
+  gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite);
 
-  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
-  gl.uniform2f(texOffsetLoc, posX, posY)
+  // Calcula a coordenada U/V da textura no quadro atual de animação
+  const posX = (colunaInicial + frameBesouro) * larguraSprite;
+  const posY = 1.0 - ((linhaDesejada + 1) * alturaSprite);
+  gl.uniform2f(texOffsetLoc, posX, posY);
 
-  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
-  gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
+  // 3. Renderiza cada besouro ativo em sua coordenada real
+  for (const besouro of besourosAtivos) {
+    if (!besouro.vivo) continue;
 
-  gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, texturaBesouro)
-
-  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
-  gl.uniform1i(texturaLoc, 0)
-
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    // Atualiza a posição X e Y individual no shader
+    gl.uniform2f(posicaoLoc, besouro.posX, besouro.posY);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
 }
 
 export function desenhaMosca(gl) {
+  if (!moscaViva) return;
   // Posição da mosca na tela
   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
   gl.uniform2f(posicaoLoc, 0.0, 0.4) // x: 0.0 (centro), y: 0.4 (no alto)
@@ -409,37 +429,37 @@ export function desenhaMoeda(gl) {
 }
 
 export function desenhaFormigaVermelha(gl) {
-  // Posição da formiga
-  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
-  gl.uniform2f(posicaoLoc, 0.55, 0.20)
+  if (formigasVermelhasAtivas.length === 0) return;
 
-  // Tamanho na tela
-  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
-  gl.uniform2f(tamanhoLoc, 0.16, 0.16)
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
 
-  const larguraSprite = 1 / 12
-  const alturaSprite = 1 / 8
+  const larguraSprite = 1 / 12;
+  const alturaSprite = 1 / 8;
 
-  // Configuração da variação/orientação da formiga
-  const colunaInicial = 3 // Coluna base da formiga desejada
-  const linha = 1         // Linha desejada na imagem
+  // Usa o índice direto da linha
+  const linha = 1; 
 
-  // O frameFormiga (0, 1 ou 2) é somado à coluna inicial
-  const colunaAtual = colunaInicial + frameFormiga
+  const colunaInicial = 3; 
+  const colunaAtual = colunaInicial + (Math.abs(frameFormigaVermelha) % 3);
 
-  // Envia as coordenadas UV dinâmicas para o Shader
-  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
-  gl.uniform2f(texOffsetLoc, colunaAtual * larguraSprite, linha * alturaSprite)
+  gl.uniform2f(texOffsetLoc, colunaAtual * larguraSprite, linha * alturaSprite);
+  gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite);
+  gl.uniform2f(tamanhoLoc, 0.16, 0.16);
 
-  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
-  gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texturaFormiga);
+  gl.uniform1i(texturaLoc, 0);
 
-  // Ativa e desenha a textura
-  gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, texturaFormiga)
+  for (const formiga of formigasVermelhasAtivas) {
+    if (!formiga.viva) continue;
 
-  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
-  gl.uniform1i(texturaLoc, 0)
-
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    gl.uniform2f(posicaoLoc, formiga.posX, formiga.posY);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
 }
+
+
