@@ -9,6 +9,17 @@ const INTERVALO_MIN_VERMELHA = 3.5;  // Limite rápido: hordas a cada 3.5s
 const INTERVALO_BASE_BESOUROS = 7.0; // Começa com 10s entre hordas
 const INTERVALO_MIN_BESOUROS = 3.5;  // Limite rápido: hordas a cada 3.5s
 
+const RAIO_ALCANCE_SPRAY = 0.35;
+
+let tempoUltimoDisparoSpray = 0;
+const COOLDOWN_SPRAY = 0.5; // Intervalo de 0.5 segundos entre disparos
+const DANO_SPRAY_POR_SEGUNDO = 100;
+
+export let usosRestantesSpray = 10;
+export let fumacasAtivas = [];
+export let posXSpray = -0.35;
+export let posYSpray = 0.25;
+
 // Declarando e exportando todas as variáveis de controle de quadros para renderização
 export let frameMosca = 0;
 export let frameFormiga = 0;
@@ -38,10 +49,42 @@ export let posYBesouro = -0.30;
 export let vidaBesouro = 4;
 export let besouroVivo = true;
 
+
 // TABULEIRO DA MATRIZ (11 linhas x 7 colunas)
 export const LINHAS = 11;
 export const COLUNAS = 7;
 export let tabuleiro = Array.from({ length: LINHAS }, () => Array(COLUNAS).fill(0));
+
+export function atualizaLogica(quantoTempo) {
+  animacaoMosca(quantoTempo);
+  animacaoSapo(quantoTempo);
+  animacaoLagarto(quantoTempo);
+  animacaoBesouro(quantoTempo);
+  animacaoMoeda(quantoTempo);
+  
+  tempoJogoTotal += quantoTempo;
+
+  // Atualização dos quadros de animação
+  tempoAnimacaoFormiga += quantoTempo;
+  if (tempoAnimacaoFormiga >= 0.15) {
+    frameFormiga = (frameFormiga + 1) % 3;
+    frameFormigaVermelha = (frameFormigaVermelha + 1) % 3;
+    tempoAnimacaoFormiga = 0;
+  }
+
+  // Atualiza as formigas simples e vermelhas
+  atualizaFormigas(quantoTempo);
+  atualizaFormigasVermelhas(quantoTempo);
+  atualizaBesouros(quantoTempo);
+  atualizaFumaca(quantoTempo)
+
+  tentarAtivarSpray(posXSpray, posYSpray, quantoTempo);
+
+
+  // Checa colisões
+  checaColisaoSapo();
+  checaDanoSapo();
+}
 
 
 // ==========================================
@@ -190,32 +233,6 @@ export function matrizParaWebGL(linha, coluna) {
   return { x, y };
 }
 
-export function atualizaLogica(quantoTempo) {
-  animacaoMosca(quantoTempo);
-  animacaoSapo(quantoTempo);
-  animacaoLagarto(quantoTempo);
-  animacaoBesouro(quantoTempo);
-  animacaoMoeda(quantoTempo);
-  
-  tempoJogoTotal += quantoTempo;
-
-  // Atualização dos quadros de animação
-  tempoAnimacaoFormiga += quantoTempo;
-  if (tempoAnimacaoFormiga >= 0.15) {
-    frameFormiga = (frameFormiga + 1) % 3;
-    frameFormigaVermelha = (frameFormigaVermelha + 1) % 3;
-    tempoAnimacaoFormiga = 0;
-  }
-
-  // Atualiza as formigas simples e vermelhas
-  atualizaFormigas(quantoTempo);
-  atualizaFormigasVermelhas(quantoTempo);
-  atualizaBesouros(quantoTempo);
-
-  // Checa colisões
-  checaColisaoSapo();
-  checaDanoSapo();
-}
 
 // Coordenadas fixas do corpo do Sapo no WebGL
 const posXSapo = -0.5;
@@ -483,3 +500,160 @@ export function atualizaBesouros(quantoTempo) {
   }
 }
 
+function estaVivo(inseto) {
+  if (typeof inseto.viva !== 'undefined') return inseto.viva;
+  if (typeof inseto.vivo !== 'undefined') return inseto.vivo;
+  return false;
+}
+
+export function temInsetoNoAlcance(posXBase, posYBase) {
+  // Ponto de origem da checagem: bico superior da lata de spray
+  const bicoX = posXBase;
+  const bicoY = posYBase + ALTURA_BICO_SUPERIOR;
+
+  // 1. Une todas as listas de insetos terrestres
+  const todosInsetos = [
+    ...formigasAtivas,
+    ...formigasVermelhasAtivas,
+    ...besourosAtivos
+  ];
+
+  for (const inseto of todosInsetos) {
+    if (!estaVivo(inseto)) continue;
+
+    const dx = inseto.posX - bicoX;
+    const dy = inseto.posY - bicoY;
+    const distancia = Math.hypot(dx, dy);
+
+    if (distancia <= RAIO_ALCANCE_SPRAY) {
+      return true;
+    }
+  }
+
+  // 2. Checa a mosca se estiver viva
+  if (typeof moscaViva !== 'undefined' && moscaViva) {
+    const dx = posXMosca - bicoX;
+    const dy = posYMosca - bicoY;
+    if (Math.hypot(dx, dy) <= RAIO_ALCANCE_SPRAY) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export function tentarAtivarSpray(posXSpray, posYSpray, quantoTempo) {
+  if (usosRestantesSpray <= 0) return;
+
+  tempoUltimoDisparoSpray += quantoTempo;
+
+  if (tempoUltimoDisparoSpray >= COOLDOWN_SPRAY) {
+    // Passa as coordenadas base para validar alcance a partir do bico
+    if (temInsetoNoAlcance(posXSpray, posYSpray)) {
+      disparaSpray(posXSpray, posYSpray);
+      usosRestantesSpray -= 1;
+      tempoUltimoDisparoSpray = 0;
+    }
+  }
+}
+
+export function aplicaDanoAreaSpray(posXFumaca, posYFumaca, quantoTempo) {
+  // 1. Formigas Comuns
+  for (let i = formigasAtivas.length - 1; i >= 0; i--) {
+    const f = formigasAtivas[i];
+    if (!f.viva) continue;
+
+    const dx = f.posX - posXFumaca;
+    const dy = f.posY - posYFumaca;
+
+    if (Math.hypot(dx, dy) <= RAIO_ALCANCE_SPRAY) {
+      f.vida -= DANO_SPRAY_POR_SEGUNDO * quantoTempo;
+      if (f.vida <= 0) {
+        f.viva = false;
+        console.log("Formiga eliminada pelo Spray!");
+      }
+    }
+  }
+
+  // 2. Formigas Vermelhas
+  for (let i = formigasVermelhasAtivas.length - 1; i >= 0; i--) {
+    const fv = formigasVermelhasAtivas[i];
+    if (!fv.viva) continue;
+
+    const dx = fv.posX - posXFumaca;
+    const dy = fv.posY - posYFumaca;
+
+    if (Math.hypot(dx, dy) <= RAIO_ALCANCE_SPRAY) {
+      fv.vida -= DANO_SPRAY_POR_SEGUNDO * quantoTempo;
+      if (fv.vida <= 0) {
+        fv.viva = false;
+        console.log("Formiga Vermelha eliminada pelo Spray!");
+      }
+    }
+  }
+
+  // 3. Besouros
+  for (let i = besourosAtivos.length - 1; i >= 0; i--) {
+    const b = besourosAtivos[i];
+    if (!b.vivo) continue;
+
+    const dx = b.posX - posXFumaca;
+    const dy = b.posY - posYFumaca;
+
+    if (Math.hypot(dx, dy) <= RAIO_ALCANCE_SPRAY) {
+      b.vida -= DANO_SPRAY_POR_SEGUNDO * quantoTempo;
+      if (b.vida <= 0) {
+        b.vivo = false;
+        console.log("Besouro eliminado pelo Spray!");
+      }
+    }
+  }
+
+  // 4. Mosca
+  if (typeof moscaViva !== 'undefined' && moscaViva) {
+    const dx = posXMosca - posXFumaca;
+    const dy = posYMosca - posYFumaca;
+
+    if (Math.hypot(dx, dy) <= RAIO_ALCANCE_SPRAY) {
+      if (typeof causarDanoMosca === 'function') {
+        causarDanoMosca(DANO_SPRAY_POR_SEGUNDO * quantoTempo);
+      }
+    }
+  }
+}
+
+const ALTURA_BICO_SUPERIOR = 0.2;
+
+export function disparaSpray(posXBase, posYBase) {
+  if (fumacasAtivas.length === 0) {
+    fumacasAtivas.push({
+      posX: posXBase,
+      posY: posYBase + ALTURA_BICO_SUPERIOR, // Origem exata na ponta superior
+      vida: 1.0,
+      tamanho: 0.20
+    });
+  }
+}
+
+export function atualizaFumaca(quantoTempo) {
+  for (let i = fumacasAtivas.length - 1; i >= 0; i--) {
+    const f = fumacasAtivas[i];
+
+    // Mantém a fumaça exatamente centralizada na ponta superior do spray
+    f.posX = posXSpray + 0.15; // Removido o + 0.15 que tirava do centro
+    f.posY = posYSpray + ALTURA_BICO_SUPERIOR;
+
+    // Aplica dano na área da fumaça
+    if (typeof aplicaDanoAreaSpray === 'function') {
+      aplicaDanoAreaSpray(f.posX, f.posY, quantoTempo);
+    }
+
+    // Avança a animação
+    f.vida -= quantoTempo * 1.5;
+
+    // Remove quando a animação terminar
+    if (f.vida <= 0) {
+      fumacasAtivas.splice(i, 1);
+    }
+  }
+}

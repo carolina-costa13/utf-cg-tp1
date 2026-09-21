@@ -12,7 +12,9 @@ import {
   carregaTexturaMosca,
   carregaTexturaSapo,
   carregaTexturaSpray,
-  carregaTexturaVeneno
+  carregaTexturaVeneno,
+  carregaTexturaFumacaSpray,
+  carregaTexturaVida
 
 } from './textures.js';
 
@@ -148,7 +150,9 @@ carregaTexturaBesouro(gl)
 carregaTexturaMosca(gl)
 carregaTexturaSapo(gl)
 carregaTexturaMoeda(gl)
-carregaTexturaFormigaVermelha(gl)
+carregaTexturaFormigaVermelha(gl),
+carregaTexturaFumacaSpray(gl)
+carregaTexturaVida(gl)
 
   // 5. inicia valores para variáveis de estado
     gl.clearColor(1, 0, 0, 1) // cor borracha: branco

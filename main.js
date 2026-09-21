@@ -11,7 +11,9 @@ import {
   desenhaMosca, 
   desenhaSapo, 
   desenhaMoeda, 
-  desenhaFormigaVermelha 
+  desenhaFormigaVermelha,
+  desenhaBarraVida,
+  desenhaFumaca
 } from './js/desenhos.js';
 
 import { 
@@ -25,8 +27,14 @@ import {
   texturaMosca, 
   texturaSapo, 
   texturaMoeda, 
-  texturaFormigaVermelha 
+  texturaFormigaVermelha,
+  texturaVida, 
+  texturasFumacaSpray
 } from './js/textures.js';
+
+import { 
+    vidaSapo
+} from './js/animations.js';
 
 const gl = configuraTudo();
 let logoAntes = 0;
@@ -48,6 +56,9 @@ function desenhaCena(gl) {
   if (texturaSapo) desenhaSapo(gl);
   if (texturaMoeda) desenhaMoeda(gl);
   if (texturaFormigaVermelha) desenhaFormigaVermelha(gl);
+  if (texturaVida) desenhaBarraVida(gl,vidaSapo,5,6);
+  if (texturasFumacaSpray)desenhaFumaca(gl);
+  
 }
 
 function loopPrincipal(agora) {

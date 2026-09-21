@@ -10,7 +10,11 @@ import {
   besouroVivo,
   formigasAtivas,
   formigasVermelhasAtivas,
-  besourosAtivos
+  besourosAtivos,
+  fumacasAtivas,
+  usosRestantesSpray,
+  posXSpray,
+  posYSpray
 
 } from './animations.js';
 
@@ -26,7 +30,10 @@ import {
   texturaMosca, 
   texturaSapo, 
   texturaMoeda, 
-  texturaFormigaVermelha
+  texturaFormigaVermelha,
+  texturasFumacaSpray,
+  texturaVida
+
 } from './textures.js';
 
 import { programa } from './glSetup.js';
@@ -161,39 +168,40 @@ export function desenhaVeneno(gl) {
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4)
 }
 
-
 export function desenhaSpray(gl) {
+    if (usosRestantesSpray <= 0) return;
 
-    // posição do spray
-    const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+    if (typeof programa === 'undefined' || !programa) return;
 
-    gl.uniform2f(posicaoLoc, -0.35,0.25)
+    gl.useProgram(programa);
 
-    // tamanho do spray
-    const tamanhoLoc =gl.getUniformLocation(programa, 'u_size')
+    // Posição dinâmica do spray importada do animations.js
+    const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+    gl.uniform2f(posicaoLoc, posXSpray, posYSpray); // 👈 Posição dinâmica aqui!
 
-    gl.uniform2f(tamanhoLoc,0.08,0.19)
+    // Tamanho do spray
+    const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+    gl.uniform2f(tamanhoLoc, 0.08, 0.19);
 
-     const texOffsetLoc =gl.getUniformLocation(programa,'u_texOffset')
-     gl.uniform2f(texOffsetLoc,0.0,0.0)
+    const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+    gl.uniform2f(texOffsetLoc, 0.0, 0.0);
 
-    const texSizeLoc =gl.getUniformLocation(programa,'u_texSize')
+    const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+    gl.uniform2f(texSizeLoc, 1.0, 1.0);
 
-    gl.uniform2f(texSizeLoc,1.0,1.0)
+    // Seleciona a textura do Spray
+    if (typeof texturaSpray !== 'undefined' && texturaSpray) {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texturaSpray);
+        
+        const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
+        gl.uniform1i(texturaLoc, 0);
+    }
 
-    // seleciona a textura do Spray
-    gl.activeTexture(gl.TEXTURE0)
-
-    gl.bindTexture(gl.TEXTURE_2D,texturaSpray)
-
-    // informa ao shader que a textura está na unidade 0
-    const texturaLoc =gl.getUniformLocation(programa,'u_texture')
-
-    gl.uniform1i(texturaLoc,0)
-
-    // desenha o quadrado
-    gl.drawArrays(gl.TRIANGLE_STRIP,0,4)
+    // Desenha o quadrado
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
+
 
 export function desenhaLagarto(gl) {
   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
@@ -462,4 +470,107 @@ export function desenhaFormigaVermelha(gl) {
   }
 }
 
+export function desenhaBarraVida(gl, vidaAtual, vidaMaxima, tipoCor = 0) {
+  if (typeof texturaHUD === 'undefined' || !texturaHUD) {
+      return;
+    }
 
+  if (typeof programa === 'undefined' || !programa) return;
+
+  gl.useProgram(programa);
+
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
+
+  // Mapeamento da Spritesheet (A imagem completa)
+  // A parte das barras ocupa a metade esquerda da imagem
+  const larguraBarraUV = 0.25;  // Largura de uma barra individual em UV
+  const alturaBarraUV = 1 / 24;  // 24 linhas de barras no total
+
+  // 1. Calcula qual o estado de preenchimento (0 = vazia, 5 = cheia)
+  const percentual = Math.max(0, Math.min(1, vidaAtual / vidaMaxima));
+  const nivelVida = Math.round(percentual * 5); // 0, 1, 2, 3, 4, 5
+  const indiceEstado = 5 - nivelVida; // Inverte porque o topo do bloco é 'cheia'
+
+  // 2. Escolhe a cor base (Offset das linhas):
+  // 0: Azul Escuro | 1: Azul Claro | 2: Verde Escuro | 3: Verde Claro
+  // 4: Laranja     | 5: Amarelo    | 6: Vermelho     | 7: Roxo
+  const linhaBaseCor = tipoCor * 6; // Cada cor ocupa 6 linhas de variação
+  const linhaFinal = linhaBaseCor + indiceEstado;
+
+  // 3. Define a coluna UV (0 para a 1ª coluna de barras, 0.25 para a 2ª)
+  const colunaUV = (tipoCor % 2 === 1) ? 0.25 : 0.0;
+
+  // Coordenadas UV de recorte na textura
+  const texX = colunaUV;
+  const texY = 1.0 - ((linhaFinal + 1) * alturaBarraUV);
+
+  // Ativa a textura do HUD
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texturaVida);
+  gl.uniform1i(texturaLoc, 0);
+
+  // Posição fixa no canto superior esquerdo da tela (exemplo: -0.7, 0.85)
+  gl.uniform2f(posicaoLoc, -0.7, 0.85); 
+  gl.uniform2f(tamanhoLoc, 0.4, 0.08); // Tamanho da barra no canvas
+
+  // Passa as coordenadas de corte da textura para o shader
+  gl.uniform2f(texOffsetLoc, texX, texY);
+  gl.uniform2f(texSizeLoc, larguraBarraUV, alturaBarraUV);
+
+  // Renderiza a barra
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+export function desenhaFumaca(gl) {
+  if (!fumacasAtivas || fumacasAtivas.length === 0 || !texturasFumacaSpray || texturasFumacaSpray.length === 0) return;
+
+  if (typeof programa !== 'undefined' && programa) {
+    gl.useProgram(programa);
+  }
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.depthMask(false);
+
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
+
+  gl.uniform2f(texOffsetLoc, 0.0, 0.0);
+  gl.uniform2f(texSizeLoc, 1.0, 1.0);
+
+  const totalFrames = texturasFumacaSpray.length;
+
+  for (const f of fumacasAtivas) {
+    // Progresso de 0.0 a 1.0 para percorrer as texturas
+    const progresso = 1.0 - Math.max(0.0, f.vida);
+
+    const indiceFrame = Math.min(
+      Math.floor(progresso * totalFrames),
+      totalFrames - 1
+    );
+
+    const texturaAtual = texturasFumacaSpray[indiceFrame];
+    if (texturaAtual) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texturaAtual);
+      gl.uniform1i(texturaLoc, 0);
+    }
+
+    // Se a base da fumaça precisa ficar no bico, deslocamos metade do tamanho da fumaça para cima
+    const deslocamentoCentroFumacaY = f.posY + (f.tamanho / 2);
+
+    gl.uniform2f(posicaoLoc, f.posX, deslocamentoCentroFumacaY);
+    gl.uniform2f(tamanhoLoc, f.tamanho, f.tamanho);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  gl.depthMask(true);
+}

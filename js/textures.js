@@ -9,6 +9,8 @@ export let texturaMosca;
 export let texturaSapo;
 export let texturaMoeda;
 export let texturaFormigaVermelha;
+export let texturasFumacaSpray = [];
+export let texturaVida = null;
 
 export function carregaTexturaCenario(gl) {
     // (1) carrega a imagem
@@ -291,4 +293,76 @@ export function carregaTexturaMoeda(gl) {
     }
 
     imagemMoeda.src = "sprites/coins/coin2_20x20.png"
+}
+
+
+export function carregaTexturaFumacaSpray(gl) {
+    // 1. Defina a lista com o caminho de todos os quadros da animação
+    const caminhosImagens = [
+        "sprites/Smoke/Chemical Smoke/PNG/Chemical Smoke_Frame_01.png",
+        "sprites/Smoke/Chemical Smoke/PNG/Chemical Smoke_Frame_02.png",
+        "sprites/Smoke/Chemical Smoke/PNG/Chemical Smoke_Frame_03.png",
+        "sprites/Smoke/Chemical Smoke/PNG/Chemical Smoke_Frame_04.png",
+        "sprites/Smoke/Chemical Smoke/PNG/Chemical Smoke_Frame_05.png",
+        "sprites/Smoke/Chemical Smoke/PNG/Chemical Smoke_Frame_06.png",
+        "sprites/Smoke/Chemical Smoke/PNG/Chemical Smoke_Frame_07.png",
+        "sprites/Smoke/Chemical Smoke/PNG/Chemical Smoke_Frame_08.png"
+        
+    ];
+
+    // Limpa o array caso a função seja chamada novamente
+    texturasFumacaSpray = [];
+
+    // 2. Percorre cada caminho e cria a textura correspondente
+    caminhosImagens.forEach((caminho) => {
+        const textura = gl.createTexture();
+        texturasFumacaSpray.push(textura);
+
+        // Textura temporária de 1x1 transparente enquanto a imagem carrega
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, textura);
+        gl.texImage2D(
+            gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, 
+            gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0])
+        );
+
+        // Carregamento assíncrono do arquivo PNG
+        const img = new Image();
+        img.onload = function () {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, textura);
+
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        };
+
+        img.src = caminho;
+    });
+}
+
+export function carregaTexturaVida(gl) {
+    const imagemVida = new Image();
+    texturaVida = gl.createTexture();
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texturaVida);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+
+    imagemVida.onload = function () {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texturaVida);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imagemVida);
+    };
+
+    imagemVida.src = "sprites/healthbars_gemstones.png";
 }
