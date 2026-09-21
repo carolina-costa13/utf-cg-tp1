@@ -292,3 +292,60 @@ export function carregaTexturaMoeda(gl) {
 
     imagemMoeda.src = "sprites/coins/coin2_20x20.png"
 }
+
+/* ==========================================
+   ATAQUE MOSCA + PROJÉTEIS
+  ==========================================*/
+export let texturaMoscaTiro;
+export let texturaProjetil;
+export let texturaParticulaTiro;
+
+// Carrega uma imagem e só entrega a textura quando ela está pronta. 
+// Ela não é chamada lá no glSetup, é usada só aqui mesmo.
+function criaTexturaDeImagem(gl, caminho, quandoPronta) {
+    const imagem = new Image() // Cria o objeto da imagem
+
+    // Quando a imagem terminar de carregar, cria e configura a textura no WebGL
+    imagem.onload = function () { 
+        const textura = gl.createTexture()
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, textura)
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imagem)
+
+        quandoPronta(textura) 
+        //Quando termina, retorna a textura prontinha, não precisa 
+        //esperar o js baixar as características das imagens.
+    }
+
+    imagem.onerror = function () {
+        console.error("Não foi possível carregar: " + caminho)
+    }
+    
+    // É aqui que o carregamento começa.
+    // Deixa a função mais geral, então não precisamos copiar e colar ela várias vezes.
+    imagem.src = caminho
+}
+
+// Chamadas da função acima
+export function carregaTexturaMoscaTiro(gl) {
+    criaTexturaDeImagem(gl, "sprites/fly_monster_by_yurinikolai/fly_shoot/spritesheet/fly_shoot.png",
+        function (tex) { texturaMoscaTiro = tex }) 
+        // Função que guarda o parâmetro tex (textura) na variável texturaMoscaTiro
+        // Usar ela é uma preucaução pra que quando a main chamar a função desenha
+        // não seja desenhado um retângulo preto (vetor de textura incompleta)
+}
+
+export function carregaTexturaProjetil(gl) {
+    criaTexturaDeImagem(gl, "sprites/fly_monster_by_yurinikolai/projectile/spritesheet/Sprite-0001.png",
+        function (tex) { texturaProjetil = tex })
+}
+
+export function carregaTexturaParticulaTiro(gl) {
+    criaTexturaDeImagem(gl, "sprites/fly_monster_by_yurinikolai/shoot_particle/spritesheet/shoot_particle.png",
+        function (tex) { texturaParticulaTiro = tex })
+}

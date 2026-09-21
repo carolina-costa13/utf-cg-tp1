@@ -11,7 +11,9 @@ import {
   desenhaMosca, 
   desenhaSapo, 
   desenhaMoeda, 
-  desenhaFormigaVermelha 
+  desenhaFormigaVermelha,
+  desenhaProjeteis,
+  desenhaParticulasTiro
 } from './js/desenhos.js';
 
 import { 
@@ -25,18 +27,25 @@ import {
   texturaMosca, 
   texturaSapo, 
   texturaMoeda, 
-  texturaFormigaVermelha 
+  texturaFormigaVermelha,
+  texturaProjetil,
+  texturaParticulaTiro,
 } from './js/textures.js';
 
+/*Carrega as texturas/imagens*/
 const gl = configuraTudo();
 let logoAntes = 0;
 
 function desenhaCena(gl) {
-  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.clear(gl.COLOR_BUFFER_BIT); //Apaga a cena inteira antes de desenhar o frame novo.
 
-  gl.useProgram(programa);
-  gl.bindVertexArray(vao);
+  gl.useProgram(programa); // Programa  = (vertex shader + fragment shader).
+  gl.bindVertexArray(vao); //Ativa o VAO
 
+  /* if evita tentar desenhar antes da imagem estar pronta.
+     a ordem também importa, o que é desenhado depois fica por cima, por isso
+     projéteis e partículas vão por último, cenário vem primeiro.
+  */
   if (texture) desenhaCenario(gl);
   if (texturaBolo) desenhaBolo(gl);
   if (texturaFormiga) desenhaFormiga(gl);
@@ -48,6 +57,8 @@ function desenhaCena(gl) {
   if (texturaSapo) desenhaSapo(gl);
   if (texturaMoeda) desenhaMoeda(gl);
   if (texturaFormigaVermelha) desenhaFormigaVermelha(gl);
+  if (texturaParticulaTiro) desenhaParticulasTiro(gl);
+  if (texturaProjetil) desenhaProjeteis(gl);
 }
 
 function loopPrincipal(agora) {
@@ -88,42 +99,39 @@ requestAnimationFrame(loopPrincipal);
 
 
 
-//let programa
-//let vao
-//let texture
-//let texturaBolo
-//let texturaFormiga
-//let texturaVeneno
-//let texturaSpray
-//let texturaLagarto
-//let texturaBesouro
-//let texturaMosca
-//let frameMosca = 0
-//let tempoAnimacaoMosca = 0
-//let frameFormiga = 0
-//let tempoAnimacaoFormiga = 0
-//let texturaSapo
-//let frameLingua = 0
-//let tempoAnimacaoLingua = 0
-//let tempoAnimacaoLagarto=0
-//let frameLagarto=0
-//let frameBesouro = 0
-//let tempoAnimacaoBesouro = 0
-//let texturaMoeda
-//let frameMoeda = 0
-//let tempoAnimacaoMoeda = 0
-//let texturaFormigaVermelha
-//let tempoAnimacaoFormigaVermelha = 0
-//let frameFormigaVermelha = 0
+// /*Variáveis que guardam as texturas/imagens usadas no jogo*/
+// let programa
+// let vao
+// let texture
+// let texturaBolo
+// let texturaFormiga
+// let texturaVeneno
+// let texturaSpray
+// let texturaLagarto
+// let texturaBesouro
+// let texturaMosca
 
+// /*Variáveis que controlam animações*/
+// let frameMosca = 0
+// let tempoAnimacaoMosca = 0
+// let frameFormiga = 0
+// let tempoAnimacaoFormiga = 0
+// let texturaSapo
+// let frameLingua = 0
+// let tempoAnimacaoLingua = 0
+// let tempoAnimacaoLagarto=0
+// let frameLagarto=0
+// let frameBesouro = 0
+// let tempoAnimacaoBesouro = 0
+// let texturaMoeda
+// let frameMoeda = 0
+// let tempoAnimacaoMoeda = 0
 
+// /*Variáveis que controlam o movimento*/
+// let posicaoMoscaX = 1.2
+// let posicaoMoscaY = 0.4
 
-// import { configuraTudo } from './js/glSetup.js';
-// import { carregarTodasTexturas } from './js/textures.js';
-// import { atualizaLogica } from './js/animations.js';
-// import { desenhaCena } from './js/desenhos.js';
-
-// const gl = configuraTudo()
+// const gl = configuraTudo() /*Objeto que conversa com o WebGL2*/
 // let logoAntes = 0
 
 // function loopPrincipal(agora) {
@@ -145,7 +153,7 @@ requestAnimationFrame(loopPrincipal);
 
 
 
-//function configuraTudo() {
+// function configuraTudo() {
 //   // 1. inicia contexto WebGL2
 //     const canvas = document.querySelector('canvas')
 //     const gl = canvas.getContext('webgl2')
@@ -164,9 +172,10 @@ requestAnimationFrame(loopPrincipal);
  
 //    // 3. cria, compila e linka programa shader
 //   // 3.1 cria e compila o vertex shader
+//   /*Trabalha com os vértices.*/
 //     const vsCode = `#version 300 es
-
-//         in vec2 a_position;
+        
+//         in vec2 a_position; 
 //         in vec2 a_texcoord;
 
 //         uniform vec2 u_position;
@@ -174,6 +183,8 @@ requestAnimationFrame(loopPrincipal);
 
 //         uniform vec2 u_texOffset;
 //         uniform vec2 u_texSize;
+
+//         uniform bool u_flipX;
 
 //         out vec2 v_texcoord;
 
@@ -186,16 +197,24 @@ requestAnimationFrame(loopPrincipal);
 //                 vec4(posicao, 0.0, 1.0);
 
 //             // região da textura
+
+//             vec2 coordenadaTextura = a_texcoord;
+
+//             if (u_flipX) {
+//                 coordenadaTextura.x = 1.0 - coordenadaTextura.x;
+//             }
+
 //             v_texcoord =
-//                 a_texcoord * u_texSize
+//                 coordenadaTextura * u_texSize
 //                 + u_texOffset;
-//         }
+//           }
 //     `
 //   const vs = gl.createShader(gl.VERTEX_SHADER)
 //   gl.shaderSource(vs, vsCode)
 //   gl.compileShader(vs)
 
 //   // 3.2 cria e compila o fragment shader
+//   /*Trabalha com as cores dos pixels que serão desenhados.*/
 //   const fsCode = `#version 300 es
 
 //         precision mediump float;
@@ -245,22 +264,25 @@ requestAnimationFrame(loopPrincipal);
 // ])
 
 //   // 4.2 cria um VAO para o triângulo
+//   /*Guarda as instruções de como o WebGL deve interpretar os dados do VBO*/
 //   vao = gl.createVertexArray()
 //   gl.bindVertexArray(vao)
   
 //   // 4.3 cria um VBO (buffer) com vértices
+//   /*Guarda os dados dos vértices*/
 //   const vbo = gl.createBuffer()             // (a)
 //   gl.bindBuffer(gl.ARRAY_BUFFER, vbo)       // (b)
 //   gl.bufferData(gl.ARRAY_BUFFER, vertices,  // (c) 
 //                                     gl.STATIC_DRAW)
 //   // (d) instruir a busca e (e) ativar o atributo
 
-
+// /*Como encontrar a posição*/
 //   const posicaoLoc = gl.getAttribLocation(programa, 'a_position')
-//   gl.vertexAttribPointer(// index, size, type, normalize, stride, offset     d. instrui shader onde e como
+//   gl.vertexAttribPointer(// index, size, type, normalize, stride, offset     d. instrui shader onde e como ler os dados do vbo
 //                             posicaoLoc, 2, gl.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT, 0)         //    buscar os dados do atributo
 //   gl.enableVertexAttribArray(posicaoLoc)                                  // e. habilita o atributo
-  
+
+//   /*Como encontrar a textura*/
 //   const texcoordLoc = gl.getAttribLocation(programa, 'a_texcoord')
 
 //   gl.vertexAttribPointer(texcoordLoc,2, gl.FLOAT,false, 4 * Float32Array.BYTES_PER_ELEMENT,2 * Float32Array.BYTES_PER_ELEMENT)
@@ -286,8 +308,10 @@ requestAnimationFrame(loopPrincipal);
 //     return gl
 // }
 
+// /*Variável quantoTempo é o tempo que passou desde o último frame */
 // function atualizaLogica(quantoTempo) {
 //   animacaoMosca(quantoTempo)
+//   movimentaMosca(quantoTempo)
 //   animacaoFormiga(quantoTempo)
 //   animacaoSapo(quantoTempo)
 //   animacaoLagarto(quantoTempo)
@@ -362,9 +386,9 @@ requestAnimationFrame(loopPrincipal);
 //     }
 // }
 
-//-----------------------------------------------------------------------------------------------------------------
-//                      CARREGAMENTO DE TEXTURA
-//-----------------------------------------------------------------------------------------------------------------
+// //-----------------------------------------------------------------------------------------------------------------
+// //                      CARREGAMENTO DE TEXTURA
+// //-----------------------------------------------------------------------------------------------------------------
 
 
 // function carregaTexturaCenario(gl){
@@ -650,11 +674,19 @@ requestAnimationFrame(loopPrincipal);
 
 //   imagemMoeda.src = "sprites/coins/coin2_20x20.png"
 // }
-//---------------------------------------------------------------------------------------------------------------
-//                  FUNÇOES DE DESENHO
-//-----------------------------------------------------------------------------------------------------------------
+// //---------------------------------------------------------------------------------------------------------------
+// //                  FUNÇOES DE DESENHO
+// //-----------------------------------------------------------------------------------------------------------------
 
 // function desenhaBolo(gl) {
+
+//   /*Por causa da adição da função u_flipX no vertex shader, é bom que esse trecho
+//   de código fosse adicionado em todas as outras funções de desenhar sprites, pois
+//   em "desenhaMosca" ela torna a variável true e se isso não for desfeito corre o risco de que as outras sprites
+//   sejam invertidas, assim como a mosca*/
+//   const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+//   gl.uniform1i(flipXLoc, 0)
+
 //   // Posição do bolo
 //   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
 //   gl.uniform2f(posicaoLoc, -0.65, 0.0)
@@ -683,6 +715,11 @@ requestAnimationFrame(loopPrincipal);
 // }
 
 // function desenhaCenario(gl){
+
+//     /*Evita que a sprite seja invertida desnecessariamente.*/
+//     const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+//     gl.uniform1i(flipXLoc, 0)
+
 //      // posição do cenário
 //     const posicaoLoc =gl.getUniformLocation(programa, 'u_position')
 
@@ -715,6 +752,10 @@ requestAnimationFrame(loopPrincipal);
 // }
 
 // function desenhaFormiga(gl) {
+//   /*Evita que a sprite seja invertida desnecessariamente.*/
+//   const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+//   gl.uniform1i(flipXLoc, 0)
+
 //   // Posição da formiga
 //   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
 //   gl.uniform2f(posicaoLoc, 0.55, -0.10)
@@ -752,6 +793,10 @@ requestAnimationFrame(loopPrincipal);
 
 // function desenhaVeneno(gl) {
 
+//     /*Evita que a sprite seja invertida desnecessariamente.*/
+//     const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+//     gl.uniform1i(flipXLoc, 0)
+
 //     // posição do veneno
 //     const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
 
@@ -786,6 +831,10 @@ requestAnimationFrame(loopPrincipal);
 
 // function desenhaSpray(gl) {
 
+//     /*Evita que a sprite seja invertida desnecessariamente.*/
+//     const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+//     gl.uniform1i(flipXLoc, 0)
+
 //     // posição do spray
 //     const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
 
@@ -818,6 +867,11 @@ requestAnimationFrame(loopPrincipal);
 // }
 
 // function desenhaLagarto(gl) {
+
+//   /*Evita que a sprite seja invertida desnecessariamente.*/
+//   const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+//   gl.uniform1i(flipXLoc, 0)
+
 //   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
 //   gl.uniform2f(posicaoLoc, -0.35, 0.65)
 
@@ -861,6 +915,11 @@ requestAnimationFrame(loopPrincipal);
 // }
 
 // function desenhaBesouro(gl) {
+
+//   /*Evita que a sprite seja invertida desnecessariamente.*/
+//   const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+//   gl.uniform1i(flipXLoc, 0)
+
 //   // Posição desejada no canvas
 //   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
 //   gl.uniform2f(posicaoLoc, 0.55, -0.30)
@@ -901,10 +960,11 @@ requestAnimationFrame(loopPrincipal);
 //   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 // }
 
+// /*Chamada sempre que a mosca precisa ser redesenhada (o tempo todo).*/
 // function desenhaMosca(gl) {
 //   // Posição da mosca na tela
 //   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
-//   gl.uniform2f(posicaoLoc, 0.0, 0.4) // x: 0.0 (centro), y: 0.4 (no alto)
+//   gl.uniform2f(posicaoLoc, posicaoMoscaX, posicaoMoscaY) // x: 0.0 (centro), y: 0.4 (no alto)
 
 //   // Tamanho do renderizador da mosca
 //   const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
@@ -912,27 +972,49 @@ requestAnimationFrame(loopPrincipal);
 
 //   // A spritesheet da mosca possui 16 quadros organizados horizontalmente
 //   const totalFrames = 16
-//   const larguraSprite = 1 / totalFrames
-//   const alturaSprite = 1.0
+//   const larguraSprite = 1 / totalFrames /*Cada quadro ocupa esse tanto da largura total da imagem.*/
+//   const alturaSprite = 1.0  /*cada quadro usa toda a altura da textura, há apenas uma linah de sprites.*/
 
+//   /*Escolha do quadro atual: vai iterando sobre os quadros pra formar o movimento da imagem.*/
 //   const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
 //   gl.uniform2f(texOffsetLoc, frameMosca * larguraSprite, 0.0)
 
+//   /*Manda pro shader o tamanho da parte da textura que será usada*/
 //   const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
 //   gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
 
 //   // Seleciona a textura
-//   gl.activeTexture(gl.TEXTURE0)
+//   gl.activeTexture(gl.TEXTURE0) /*Ativa a unidade de textura número 0*/
 //   gl.bindTexture(gl.TEXTURE_2D, texturaMosca)
 
+//   /*Associa a textura da mosca ao TEXTURE0. Quando você usar
+//    u_texture para buscar pixels, leia a textura que está na 
+//    unidade de textura número 0*/
 //   const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
 //   gl.uniform1i(texturaLoc, 0)
 
-//   // Desenha
+//   const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+//   gl.uniform1i(flipXLoc, true)
+
+//   // Manda a GPU desenhar
 //   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+
+//   /*
+//   Com quatro vértices em TRIANGLE_STRIP, o WebGL produz dois 
+//   triângulos que formam um retângulo:
+//   vértice 0 ●────● vértice 1
+//             │  / │
+//             │ /  │
+//   vértice 2 ●────● vértice 3
+//  */
 // }
 
 // function desenhaSapo(gl) {
+
+//   /*Evita que a sprite seja invertida desnecessariamente.*/
+//   const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+//   gl.uniform1i(flipXLoc, 0)
+
 //   const larguraTotal = 208
 //   const alturaTotal = 192
 //   const alturaFramePixels = 16
@@ -997,6 +1079,11 @@ requestAnimationFrame(loopPrincipal);
 // }
 
 // function desenhaMoeda(gl) {
+
+//   /*Evita que a sprite seja invertida desnecessariamente.*/
+//   const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+//   gl.uniform1i(flipXLoc, 0)
+
 //   // Posição no canvas (Ajuste onde deseja colocar a moeda)
 //   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
 //   gl.uniform2f(posicaoLoc, 0.0, 0.2) 
@@ -1036,45 +1123,9 @@ requestAnimationFrame(loopPrincipal);
 
 //   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 // }
-
-// function desenhaFormigaVermelha(gl) {
-//   // Posição da formiga
-//   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
-//   gl.uniform2f(posicaoLoc, 0.55, 0.20)
-
-//   // Tamanho na tela
-//   const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
-//   gl.uniform2f(tamanhoLoc, 0.16, 0.16)
-
-//   const larguraSprite = 1 / 12
-//   const alturaSprite = 1 / 8
-
-//   // Configuração da variação/orientação da formiga
-//   const colunaInicial = 3 // Coluna base da formiga desejada
-//   const linha = 1         // Linha desejada na imagem
-
-//   // O frameFormiga (0, 1 ou 2) é somado à coluna inicial
-//   const colunaAtual = colunaInicial + frameFormiga
-
-//   // Envia as coordenadas UV dinâmicas para o Shader
-//   const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
-//   gl.uniform2f(texOffsetLoc, colunaAtual * larguraSprite, linha * alturaSprite)
-
-//   const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
-//   gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
-
-//   // Ativa e desenha a textura
-//   gl.activeTexture(gl.TEXTURE0)
-//   gl.bindTexture(gl.TEXTURE_2D, texturaFormiga)
-
-//   const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
-//   gl.uniform1i(texturaLoc, 0)
-
-//   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-// }
-//---------------------------------------------------------------------------------------------------------------
-//                          ANIMAÇÕES
-//---------------------------------------------------------------------------------------------------------------
+// //---------------------------------------------------------------------------------------------------------------
+// //                          ANIMAÇÕES
+// //---------------------------------------------------------------------------------------------------------------
 
 // function animacaoMosca(quantoTempo){
 //  tempoAnimacaoMosca += quantoTempo
@@ -1136,15 +1187,28 @@ requestAnimationFrame(loopPrincipal);
 //   }
 // }
 
-// function animacaoFormigaVermelha(quantoTempo){
-//     tempoAnimacaoFormigaVermelha += quantoTempo
 
-//   // Troca de quadro a cada 0.15 segundos
-//   if (tempoAnimacaoFormigaVermelha >= 0.15) {
-//     frameFormigaVermelha = (frameFormigaVermelha + 1) % 3 // Cicla entre os quadros 0, 1 e 2
-//     tempoAnimacaoFormigaVermelha = 0
-//   }
+// //---------------------------------------------------------------------------------------------------------------
+// //                          MOVIMENTO
+// //---------------------------------------------------------------------------------------------------------------
 
+
+// function movimentaMosca(quantoTempo) {
+//     /*Onde o bolo está no mapa*/
+//     const boloX = -0.50
+//     const boloY = 0.15
+
+//     const velocidadeMosca = 0.2
+
+//     const dx = boloX - posicaoMoscaX
+//     const dy = boloY - posicaoMoscaY
+
+//     const distancia = Math.sqrt(dx * dx + dy * dy)
+
+//     if (distancia > 0.02) {
+//         posicaoMoscaX += (dx / distancia) * velocidadeMosca * quantoTempo
+//         posicaoMoscaY += (dy / distancia) * velocidadeMosca * quantoTempo
+//     }
 // }
 
 

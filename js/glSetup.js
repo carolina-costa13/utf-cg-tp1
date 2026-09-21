@@ -12,7 +12,10 @@ import {
   carregaTexturaMosca,
   carregaTexturaSapo,
   carregaTexturaSpray,
-  carregaTexturaVeneno
+  carregaTexturaVeneno,
+  carregaTexturaMoscaTiro,
+  carregaTexturaProjetil,
+  carregaTexturaParticulaTiro,
 
 } from './textures.js';
 
@@ -45,23 +48,52 @@ import {
 
         uniform vec2 u_texOffset;
         uniform vec2 u_texSize;
+        uniform bool u_flipX;
+        uniform float u_angle; 
 
         out vec2 v_texcoord;
 
         void main() {
 
             vec2 posicao =
-                a_position * u_size + u_position;
+                a_position * u_size;
 
-            gl_Position =
-                vec4(posicao, 0.0, 1.0);
+            float c = cos(u_angle);
+            float s = sin(u_angle);
+
+            posicao = 
+              vec2(posicao.x * c - posicao.y * s, 
+                  posicao.x * s + posicao.y * c);
+
+            gl_Position = 
+              vec4(posicao + u_position, 0.0, 1.0);
 
             // região da textura
-            v_texcoord =
-                a_texcoord * u_texSize
-                + u_texOffset;
+            vec2 coordenadaTextura = a_texcoord;
+
+            if (u_flipX) {
+              coordenadaTextura.x = 1.0 - coordenadaTextura.x;
+            }
+
+            v_texcoord = coordenadaTextura * u_texSize + u_texOffset;
         }
     `
+  /*OBS (modificações feitas no Vertex Shader):
+  -> a variável "uniform bool u_flipX;" permite controlar se a sprite
+  está virada para a esquerda ou para a direita, isto é, permite invertê-la.
+
+  -> a variável "uniform float u_angle;" permite girar a sprite. Perceba que ao invés
+  de somar i_position em "vec2 posicao", como estava sendo feito antes, estamos somando
+  a posição em "gl_Position", somente após de rotacionar o objeto em seu próprio centro.
+  Fazer isso garante que a sprite rode em seu centro, e não no centro da tela (0,0) (desse jeito 
+  ela iriaficar orbitando na tela ao invés de rodar fixamente em seu centro, 
+  como foi mostrado em aula.*/
+
+  /*OBS: explicações esclarecedoras:
+  -> sobre a variável gl_Position: GPU lê o valor pra saber onde desenhar 
+  o canto (de -1 a 1 na tela). Ela é vec4 porque precisa de 4 números 
+  (x, y, z, w). Aqui z = 0 (não tem profundidade) e w = 1 (não tem perspectiva). */
+
   const vs = gl.createShader(gl.VERTEX_SHADER)
   gl.shaderSource(vs, vsCode)
   gl.compileShader(vs)
@@ -115,11 +147,13 @@ import {
      1.0,  1.0,       1.0, 0.0
 ])
 
-  // 4.2 cria um VAO para o triângulo
+  // 4.2 cria um VAO para o triângulo. Grava qual buffer usar, 
+  // como ler e quais atributos estão ligados
   vao = gl.createVertexArray()
   gl.bindVertexArray(vao)
   
   // 4.3 cria um VBO (buffer) com vértices
+  /*Aqui estamos levando o vbo que fizemos para a GPU ver*/
   const vbo = gl.createBuffer()             // (a)
   gl.bindBuffer(gl.ARRAY_BUFFER, vbo)       // (b)
   gl.bufferData(gl.ARRAY_BUFFER, vertices,  // (c) 
@@ -128,7 +162,7 @@ import {
 
 
   const posicaoLoc = gl.getAttribLocation(programa, 'a_position')
-  gl.vertexAttribPointer(// index, size, type, normalize, stride, offset     d. instrui shader onde e como
+  gl.vertexAttribPointer(// index, size, type, normalize, stride, offset (manual de leitura pra GPU)     d. instrui shader onde e como
                             posicaoLoc, 2, gl.FLOAT, false, 4 * Float32Array.BYTES_PER_ELEMENT, 0)         //    buscar os dados do atributo
   gl.enableVertexAttribArray(posicaoLoc)                                  // e. habilita o atributo
   
@@ -149,6 +183,10 @@ carregaTexturaMosca(gl)
 carregaTexturaSapo(gl)
 carregaTexturaMoeda(gl)
 carregaTexturaFormigaVermelha(gl)
+carregaTexturaMoscaTiro(gl)
+carregaTexturaProjetil(gl)
+carregaTexturaParticulaTiro(gl)
+
 
   // 5. inicia valores para variáveis de estado
     gl.clearColor(1, 0, 0, 1) // cor borracha: branco
