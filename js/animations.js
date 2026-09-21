@@ -15,6 +15,15 @@ let tempoUltimoDisparoSpray = 0;
 const COOLDOWN_SPRAY = 0.5; // Intervalo de 0.5 segundos entre disparos
 const DANO_SPRAY_POR_SEGUNDO = 100;
 
+export const CUSTO_DEFESAS = {
+  sapos: 100,
+  lagartos: 150,
+  sprays: 200
+}
+
+export let defesaSelecionada = null;
+export let defesasColocadas = [];
+
 export let usosRestantesSpray = 10;
 export let fumacasAtivas = [];
 export let posXSpray = -0.35;
@@ -91,7 +100,7 @@ export function atualizaLogica(quantoTempo) {
   atualizaBesouros(quantoTempo);
   atualizaFumaca(quantoTempo)
 
-  tentarAtivarSpray(posXSpray, posYSpray, quantoTempo);
+  tentarAtivarSpray(quantoTempo);
 
 
   // Checa colisões
@@ -251,6 +260,24 @@ export function matrizParaWebGL(linha, coluna) {
   return { x, y };
 }
 
+
+export function webGLParaMatriz(x, y) {
+  const minX = -0.5, maxX = 0.5;
+  const minY = -0.5, maxY = 0.5;
+
+  // Verifica se o clique foi fora do tabuleiro jogável
+  if (x < minX || x > maxX || y < minY || y > maxY) {
+    return null; 
+  }
+
+  // Mapeia X para Coluna (0 até COLUNAS - 1)
+  const coluna = Math.round(((x - minX) / (maxX - minX)) * (COLUNAS - 1));
+  
+  // Mapeia Y para Linha (0 até LINHAS - 1, invertendo a orientação do Y)
+  const linha = Math.round(((maxY - y) / (maxY - minY)) * (LINHAS - 1));
+
+  return { linha, coluna };
+}
 
 // Coordenadas fixas do corpo do Sapo no WebGL
 const posXSapo = -0.5;
@@ -563,21 +590,36 @@ export function temInsetoNoAlcance(posXBase, posYBase) {
   return false;
 }
 
-export function tentarAtivarSpray(posXSpray, posYSpray, quantoTempo) {
+export function tentarAtivarSpray(quantoTempo) {
   if (usosRestantesSpray <= 0) return;
+
+  // Procura se existe pelo menos uma torre de spray ativa no tabuleiro
+  const spraysAtivos = defesasColocadas.filter(d => d.tipo === 'sprays' && d.viva);
+  if (spraysAtivos.length === 0) return; // 🟢 Se não houver spray no tabuleiro, não faz nada!
 
   tempoUltimoDisparoSpray += quantoTempo;
 
   if (tempoUltimoDisparoSpray >= COOLDOWN_SPRAY) {
-    // Passa as coordenadas base para validar alcance a partir do bico
-    if (temInsetoNoAlcance(posXSpray, posYSpray)) {
-      disparaSpray(posXSpray, posYSpray);
-      usosRestantesSpray -= 1;
-      tempoUltimoDisparoSpray = 0;
+    // Dispara a fumaça a partir da posição de cada spray construído no tabuleiro
+    for (const spray of spraysAtivos) {
+      if (temInsetoNoAlcance(spray.posX, spray.posY)) {
+        disparaSpray(spray.posX, spray.posY);
+        usosRestantesSpray -= 1;
+        tempoUltimoDisparoSpray = 0;
+      }
     }
   }
 }
 
+export function disparaSpray(posXBase, posYBase) {
+  // Cria uma nova partícula de fumaça vinculada àquela torre de spray específica
+  fumacasAtivas.push({
+    posX: posXBase,
+    posY: posYBase + ALTURA_BICO_SUPERIOR, // Origem exata na ponta superior do spray
+    vida: 1.0,
+    tamanho: 0.20
+  });
+}
 export function aplicaDanoAreaSpray(posXFumaca, posYFumaca, quantoTempo) {
   // 1. Formigas Comuns
   for (let i = formigasAtivas.length - 1; i >= 0; i--) {
@@ -645,16 +687,6 @@ export function aplicaDanoAreaSpray(posXFumaca, posYFumaca, quantoTempo) {
 
 const ALTURA_BICO_SUPERIOR = 0.2;
 
-export function disparaSpray(posXBase, posYBase) {
-  if (fumacasAtivas.length === 0) {
-    fumacasAtivas.push({
-      posX: posXBase,
-      posY: posYBase + ALTURA_BICO_SUPERIOR, // Origem exata na ponta superior
-      vida: 1.0,
-      tamanho: 0.20
-    });
-  }
-}
 
 export function atualizaFumaca(quantoTempo) {
   for (let i = fumacasAtivas.length - 1; i >= 0; i--) {
@@ -715,13 +747,13 @@ export const torres = [
     receberDano: causarDanoBolo
   },
 
-  {
-    nome: 'sapo',
-    posX: posXSapo,
-    posY: posYSapo,
-    get viva() { return sapoVivo; },
-    receberDano: causarDanoSapo
-  },
+  // {
+  //   nome: 'sapo',
+  //   posX: posXSapo,
+  //   posY: posYSapo,
+  //   get viva() { return sapoVivo; },
+  //   receberDano: causarDanoSapo
+  // },
 
 
 ];
@@ -982,3 +1014,90 @@ export function atualizaMoedas(quantoTempo) {
     tempoParaProximaMoeda = 0;
   }
 }
+// ==========================================
+// SISTEMA DE DEFESAS E LOJA
+// ==========================================
+
+/**
+ * Seleciona o tipo de defesa que o jogador quer comprar
+ */
+export function selecionarDefesa(tipo) {
+  if (CUSTO_DEFESAS[tipo] !== undefined) {
+    defesaSelecionada = tipo;
+    console.log(`Defesa selecionada: ${tipo}. Clique no tabuleiro para posicionar.`);
+  }
+}
+
+/**
+ * Tenta posicionar a defesa selecionada na posição clicada do tabuleiro
+ */
+export function tentarPosicionarDefesa(xWebGL, yWebGL) {
+  // 1. Se nenhuma defesa foi selecionada, ignora
+  if (!defesaSelecionada) return false;
+
+  const custo = CUSTO_DEFESAS[defesaSelecionada];
+
+  // 2. Verifica se o jogador tem dinheiro suficiente
+  if (pontuacaoDinheiro < custo) {
+    console.log(`Moedas insuficientes! Você precisa de ${custo} moedas.`);
+    return false;
+  }
+
+  // 3. Converte a coordenada clicada para a célula da matriz
+  const celula = webGLParaMatriz(xWebGL, yWebGL);
+  if (!celula) {
+    console.log("Clique fora do tabuleiro jogável!");
+    return false;
+  }
+
+  const { linha, coluna } = celula;
+
+  // 4. Verifica se a posição já está ocupada (0 = Livre)
+  if (tabuleiro[linha][coluna] !== 0) {
+    console.log("Posição ocupada!");
+    return false;
+  }
+
+  // 5. Deduz o dinheiro e posiciona a defesa
+  pontuacaoDinheiro -= custo;
+  
+  // Marca na matriz (ex: 3 para Sapo/Defesa)
+  tabuleiro[linha][coluna] = 3; 
+
+  const posWebGL = matrizParaWebGL(linha, coluna);
+
+  const novaDefesa = {
+    id: Date.now(),
+    tipo: defesaSelecionada,
+    linha: linha,
+    coluna: coluna,
+    posX: posWebGL.x,
+    posY: posWebGL.y,
+    vida: 5,
+    viva: true
+  };
+
+  defesasColocadas.push(novaDefesa);
+
+  // Se a defesa tiver vida e puder ser atacada, adiciona à lista de alvos dos inimigos
+  torres.push({
+    nome: defesaSelecionada,
+    posX: posWebGL.x,
+    posY: posWebGL.y,
+    get viva() { return novaDefesa.viva; },
+    receberDano: (dano) => {
+      novaDefesa.vida -= dano;
+      if (novaDefesa.vida <= 0) {
+        novaDefesa.viva = false;
+        tabuleiro[linha][coluna] = 0; // Libera o espaço na matriz
+      }
+    }
+  });
+
+  console.log(`${defesaSelecionada} colocada na linha ${linha}, coluna ${coluna}!`);
+
+  // Reseta a seleção após colocar
+  defesaSelecionada = null;
+  return true;
+}
+

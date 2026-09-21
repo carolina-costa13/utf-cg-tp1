@@ -1,7 +1,8 @@
 export let programa;
 export let vao;
 
-import { verificarCliqueMoeda } from './animations.js';
+import { verificarCliqueMoeda, tentarPosicionarDefesa, selecionarDefesa} from './animations.js';
+import { BOTOES_LOJA } from './desenhos.js';
 
 import { 
   carregaTexturaCenario, 
@@ -21,7 +22,8 @@ import {
   carregaTexturaProjetil,
   carregaTexturaParticulaTiro,
   carregaTexturaCoinCounter,
-  carregaTexturaMoedaPlacar
+  carregaTexturaMoedaPlacar,
+  carregaTexturaBotoes
 
   
 } from './textures.js';
@@ -194,12 +196,12 @@ carregaTexturaMoeda(gl)
 carregaTexturaFormigaVermelha(gl)
 carregaTexturaFumacaSpray(gl)
 carregaTexturaVida(gl)
-carregaTexturaFormigaVermelha(gl)
 carregaTexturaMoscaTiro(gl)
 carregaTexturaProjetil(gl)
 carregaTexturaParticulaTiro(gl)
 carregaTexturaCoinCounter(gl)
 carregaTexturaMoedaPlacar(gl)
+carregaTexturaBotoes(gl)
 
 
   // 5. inicia valores para variáveis de estado
@@ -213,15 +215,34 @@ export function registraCliqueCanvas(canvas) {
   canvas.addEventListener('click', (event) => {
     const rect = canvas.getBoundingClientRect();
 
-    // 1. Calcula a posição normalizada do clique dentro do canvas (0.0 até 1.0)
     const normalizedX = (event.clientX - rect.left) / rect.width;
     const normalizedY = (event.clientY - rect.top) / rect.height;
 
-    // 2. Converte para coordenadas de clipe WebGL (-1.0 até 1.0)
     const xWebGL = normalizedX * 2 - 1;
-    const yWebGL = -(normalizedY * 2 - 1); // Inverte o eixo Y
+    const yWebGL = -(normalizedY * 2 - 1);
 
-    // 3. Executa a checagem de clique
-    verificarCliqueMoeda(xWebGL, yWebGL);
+    // 1. Tenta coletar moeda primeiro caso clique em cima de uma
+    const moedaColetada = verificarCliqueMoeda(xWebGL, yWebGL);
+    if (moedaColetada) return;
+
+    // 2. Verifica se o clique foi em algum botão da loja
+    for (const btn of BOTOES_LOJA) {
+      const meiaLargura = btn.largura / 2;
+      const meiaAltura = btn.altura / 2;
+
+      if (
+        xWebGL >= (btn.x - meiaLargura) &&
+        xWebGL <= (btn.x + meiaLargura) &&
+        yWebGL >= (btn.y - meiaAltura) &&
+        yWebGL <= (btn.y + meiaAltura)
+      ) {
+        console.log("Botão da loja clicado:", btn.tipo);
+        selecionarDefesa(btn.tipo); // Ativa o modo de construção para este tipo
+        return; 
+      }
+    }
+
+    // 3. Se o botão já foi escolhido antes, o segundo clique aqui posiciona a defesa no tabuleiro
+    tentarPosicionarDefesa(xWebGL, yWebGL);
   });
 }

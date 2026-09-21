@@ -5,7 +5,11 @@ import {
   atualizaMoedas, 
   verificarCliqueMoeda, 
   pontuacaoDinheiro, 
-  vidaSapo
+  vidaSapo,
+  defesasColocadas,
+  tentarPosicionarDefesa,
+  defesaSelecionada,
+  selecionarDefesa
 } from './js/animations.js';
 
 import { 
@@ -25,7 +29,10 @@ import {
   desenhaProjeteis,
   desenhaParticulasTiro,
   desenhaMoedaPlacar, 
-  desenhaPlacarDinheiro
+  desenhaPlacarDinheiro,
+  desenhaDefesas,
+  desenhaBotoes,
+  BOTOES_LOJA
 } from './js/desenhos.js';
 
 import { 
@@ -45,7 +52,8 @@ import {
   texturaProjetil,
   texturaParticulaTiro,
   texturaMoedaPlacar,
-  texturasCoinCounter
+  texturasCoinCounter,
+  texturaBotoes
 } from './js/textures.js';
 
 const canvas = document.getElementById('meuCanvas');
@@ -67,12 +75,12 @@ function desenhaCena(gl) {
   if (texture) desenhaCenario(gl);
   if (texturaBolo) desenhaBolo(gl);
   if (texturaFormiga) desenhaFormiga(gl);
-  if (texturaVeneno) desenhaVeneno(gl);
-  if (texturaSpray) desenhaSpray(gl);
-  if (texturaLagarto) desenhaLagarto(gl);
+  //if (texturaVeneno) desenhaVeneno(gl);
+  //if (texturaSpray) desenhaSpray(gl);
+  //if (texturaLagarto) desenhaLagarto(gl);
   if (texturaBesouro) desenhaBesouro(gl);
   if (texturaMosca) desenhaMosca(gl);
-  if (texturaSapo) desenhaSapo(gl);
+  //if (texturaSapo) desenhaSapo(gl);
   if (texturaMoeda) desenhaMoeda(gl);
   if (texturaFormigaVermelha) desenhaFormigaVermelha(gl);
   if (texturaVida) desenhaBarraVida(gl,vidaSapo,5,6);
@@ -82,6 +90,9 @@ function desenhaCena(gl) {
   if (texturaProjetil) desenhaProjeteis(gl);
   if(texturaMoedaPlacar) desenhaMoedaPlacar(gl, 0.50, 0.85);     // Ícone da moeda
   if(texturasCoinCounter)desenhaPlacarDinheiro(gl, 0.68, 0.85);
+  desenhaDefesas(gl);
+  if (texturaBotoes) desenhaBotoes(gl, texturaBotoes, BOTOES_LOJA, defesaSelecionada);
+
 }
 
 

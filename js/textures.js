@@ -16,6 +16,7 @@ export let texturaProjetil;
 export let texturaParticulaTiro;
 export let texturaMoedaPlacar = null;
 export let texturasCoinCounter = [];
+export let texturaBotoes = null;
 
 
 export function carregaTexturaCenario(gl) {
@@ -482,4 +483,32 @@ export function carregaTexturaCoinCounter(gl) {
 
         img.src = caminho;
     });
+}
+
+export function carregaTexturaBotoes(gl) {
+  texturaBotoes = gl.createTexture(); // 1. Atribui a textura à variável global exportada
+  gl.bindTexture(gl.TEXTURE_2D, texturaBotoes);
+
+  // Coloca um pixel temporário para o WebGL não reclamar enquanto a imagem baixa
+  gl.texImage2D(
+    gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0,
+    gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 0])
+  );
+
+  const imagemBotao = new Image();
+  imagemBotao.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, texturaBotoes); // 2. Agora texturaBotoes existe!
+    
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imagemBotao);
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  };
+  
+  imagemBotao.src = "sprites/Buttons/Button_Small.png";
+  return texturaBotoes;
 }

@@ -26,7 +26,8 @@ import {
   projeteis,
   particulasTiro,
   moedasAtivas,
-  pontuacaoDinheiro
+  pontuacaoDinheiro,
+  defesasColocadas
 
 } from './animations.js';
 
@@ -49,12 +50,20 @@ import {
   texturasFumacaSpray,
   texturaVida,
   texturaMoedaPlacar,
-  texturasCoinCounter
+  texturasCoinCounter,
+  texturaBotoes
 
 } from './textures.js';
 
 import { programa } from './glSetup.js';
 
+// Configuração das posições e tamanhos dos botões da loja na tela
+export const BOTOES_LOJA = [
+  { tipo: 'sapos',    x: -0.525, y: -0.82, largura: 0.22, altura: 0.22 },
+  { tipo: 'lagartos', x: -0.175, y: -0.82, largura: 0.22, altura: 0.22 },
+  { tipo: 'sprays',   x:  0.175, y: -0.82, largura: 0.22, altura: 0.22 },
+  { tipo: 'veneno',   x:  0.525, y: -0.82, largura: 0.22, altura: 0.22 }
+];
 
 // Lê o estado do bolo e pede pra GPU desenhar, ou não ele (por enquanto).
 export function desenhaBolo(gl) {
@@ -163,17 +172,17 @@ export function desenhaFormiga(gl) {
 }
 
 
-export function desenhaVeneno(gl) {
+export function desenhaVeneno(gl,posX = -0.35, posY = 0.0, largura = 0.10, altura = 0.10) {
 
     // posição do veneno
     const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
 
-    gl.uniform2f(posicaoLoc, -0.35,0.0)
+    gl.uniform2f(posicaoLoc, posX, posY)
 
     // tamanho do bolo
     const tamanhoLoc =gl.getUniformLocation(programa, 'u_size')
 
-    gl.uniform2f(tamanhoLoc,0.10,0.10)
+    gl.uniform2f(tamanhoLoc, largura, altura)
 
      const texOffsetLoc =gl.getUniformLocation(programa,'u_texOffset')
      gl.uniform2f(texOffsetLoc,0.0,0.0)
@@ -196,7 +205,7 @@ export function desenhaVeneno(gl) {
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4)
 }
 
-export function desenhaSpray(gl) {
+export function desenhaSpray(gl, posX = posXSpray, posY = posYSpray, largura = 0.08,altura = 0.19) {
     if (usosRestantesSpray <= 0) return;
 
     if (typeof programa === 'undefined' || !programa) return;
@@ -205,11 +214,11 @@ export function desenhaSpray(gl) {
 
     // Posição dinâmica do spray importada do animations.js
     const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
-    gl.uniform2f(posicaoLoc, posXSpray, posYSpray); // 👈 Posição dinâmica aqui!
+    gl.uniform2f(posicaoLoc, posX, posY); 
 
     // Tamanho do spray
     const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
-    gl.uniform2f(tamanhoLoc, 0.08, 0.19);
+    gl.uniform2f(tamanhoLoc, largura, altura);
 
     const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
     gl.uniform2f(texOffsetLoc, 0.0, 0.0);
@@ -231,12 +240,12 @@ export function desenhaSpray(gl) {
 }
 
 
-export function desenhaLagarto(gl) {
+export function desenhaLagarto(gl,posX = -0.35, posY = 0.65, largura = 0.16, altura = 0.16) {
   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
-  gl.uniform2f(posicaoLoc, -0.35, 0.65)
+  gl.uniform2f(posicaoLoc, posX, posY)
 
   const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
-  gl.uniform2f(tamanhoLoc, 0.16, 0.16)
+  gl.uniform2f(tamanhoLoc, largura, altura)
 
   const larguraSprite = 1 / 3
   const alturaSprite = 1 / 4
@@ -254,13 +263,13 @@ export function desenhaLagarto(gl) {
   const [coluna, linha] = sequenciaFrames[frameLagarto]
 
   // EIXO X: Coluna do frame atual (0, 1 ou 2)
-  const posX = coluna * larguraSprite
+  const posUVX = coluna * larguraSprite
 
   // EIXO Y: Inversão para WebGL (3 - linha)
-  const posY = (3 - linha) * alturaSprite
+  const posUVY = (3 - linha) * alturaSprite
 
   const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
-  gl.uniform2f(texOffsetLoc, posX, posY)
+  gl.uniform2f(texOffsetLoc, posUVX, posUVY)
 
   const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
   gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
@@ -313,9 +322,9 @@ export function desenhaBesouro(gl) {
   gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite);
 
   // Calcula a coordenada U/V da textura no quadro atual de animação
-  const posX = (colunaInicial + frameBesouro) * larguraSprite;
-  const posY = 1.0 - ((linhaDesejada + 1) * alturaSprite);
-  gl.uniform2f(texOffsetLoc, posX, posY);
+  const posUVX = (colunaInicial + frameBesouro) * larguraSprite;
+  const posUVY = 1.0 - ((linhaDesejada + 1) * alturaSprite);
+  gl.uniform2f(texOffsetLoc, posUVX, posUVY);
 
   // 3. Renderiza cada besouro ativo em sua coordenada real
   for (const besouro of besourosAtivos) {
@@ -468,68 +477,59 @@ export function desenhaParticulasTiro(gl) {
 
 
 
-export function desenhaSapo(gl) {
-  const larguraTotal = 208
-  const alturaTotal = 192
-  const alturaFramePixels = 16
+export function desenhaSapo(gl, posX = -0.5, posY = -0.4, largura = 0.16, altura = 0.16) {
+  const larguraTotal = 208;
+  const alturaTotal = 192;
+  const alturaFramePixels = 16;
 
-  const posXSapo = -0.5
-  const posYSapo = -0.4
+  const linhaLinguaPixel = 2;
+  const colunaInicialPixel = 3 * 16; 
 
-  const linhaLinguaPixel = 2
-  // O ataque da língua completa fica a partir do pixel 48 (coluna 3)
-  const colunaInicialPixel = 3 * 16 
+  let larguraFramePixels = 16;
+  let larguraTela = largura;
+  let offsetFrameX = 0;
 
-  let larguraFramePixels = 16
-  let larguraTela = 0.16
-  let offsetXCanvas = 0.0
-  let offsetFrameX = 0
-
-  // Ajusta proporcionalmente de acordo com a extensão do frame
   if (frameLingua === 0) {
-    larguraFramePixels = 16
-    larguraTela = 0.16
-    offsetFrameX = 0
+    larguraFramePixels = 16;
+    larguraTela = largura;
+    offsetFrameX = 0;
   } else if (frameLingua === 1) {
-    larguraFramePixels = 32 // Pega sapo + meia língua
-    larguraTela = 0.32
-    offsetFrameX = 16
+    larguraFramePixels = 32;
+    larguraTela = largura * 2;
+    offsetFrameX = 16;
   } else if (frameLingua === 2) {
-    larguraFramePixels = 48 // Pega o sprite completo de 48px
-    larguraTela = 0.48
-    offsetFrameX = 32
+    larguraFramePixels = 48;
+    larguraTela = largura * 3;
+    offsetFrameX = 32;
   }
 
-  // EIXO X (UV): Corta a largura exata necessária para a língua
-  const texWidth = larguraFramePixels / larguraTotal
-  const texHeight = alturaFramePixels / alturaTotal
+  const texWidth = larguraFramePixels / larguraTotal;
+  const texHeight = alturaFramePixels / alturaTotal;
 
-  const posXUV = (colunaInicialPixel + offsetFrameX) / larguraTotal
-  const posYUV = (alturaTotal - (linhaLinguaPixel + 1) * alturaFramePixels) / alturaTotal
+  const posXUV = (colunaInicialPixel + offsetFrameX) / larguraTotal;
+  const posYUV = (alturaTotal - (linhaLinguaPixel + 1) * alturaFramePixels) / alturaTotal;
 
-  // EIXO X (Canvas): Compensa a largura extra para o corpo não "pular" para a direita
-  // Como o retângulo cresce a partir do centro, movemos metade da largura extra para a direita
-  const ajusteCentro = (larguraTela - 0.16) / 2
+  const ajusteCentro = (larguraTela - largura) / 2;
 
-  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
-  gl.uniform2f(posicaoLoc, posXSapo + ajusteCentro, posYSapo)
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+  gl.uniform2f(posicaoLoc, posX + ajusteCentro, posY);
 
-  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
-  gl.uniform2f(tamanhoLoc, larguraTela, 0.16)
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+  gl.uniform2f(tamanhoLoc, larguraTela, altura);
 
-  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
-  gl.uniform2f(texOffsetLoc, posXUV, posYUV)
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+  gl.uniform2f(texOffsetLoc, posXUV, posYUV);
 
-  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
-  gl.uniform2f(texSizeLoc, texWidth, texHeight)
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+  gl.uniform2f(texSizeLoc, texWidth, texHeight);
 
-  gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, texturaSapo)
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texturaSapo);
 
-  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
-  gl.uniform1i(texturaLoc, 0)
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
+  gl.uniform1i(texturaLoc, 0);
 
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
 export function desenhaMoeda(gl) {
@@ -668,7 +668,9 @@ export function desenhaBarraVida(gl, vidaAtual, vidaMaxima, tipoCor = 0) {
 }
 
 export function desenhaFumaca(gl) {
-  if (!fumacasAtivas || fumacasAtivas.length === 0 || !texturasFumacaSpray || texturasFumacaSpray.length === 0) return;
+  
+  if (!fumacasAtivas || fumacasAtivas.length === 0) return;
+  if (!texturasFumacaSpray || texturasFumacaSpray.length === 0) return;
 
   if (typeof programa !== 'undefined' && programa) {
     gl.useProgram(programa);
@@ -690,7 +692,9 @@ export function desenhaFumaca(gl) {
   const totalFrames = texturasFumacaSpray.length;
 
   for (const f of fumacasAtivas) {
-    // Progresso de 0.0 a 1.0 para percorrer as texturas
+    // Se a fumaça já perdeu a vida, ignora
+    if (!f.vida || f.vida <= 0) continue;
+
     const progresso = 1.0 - Math.max(0.0, f.vida);
 
     const indiceFrame = Math.min(
@@ -705,7 +709,6 @@ export function desenhaFumaca(gl) {
       gl.uniform1i(texturaLoc, 0);
     }
 
-    // Se a base da fumaça precisa ficar no bico, deslocamos metade do tamanho da fumaça para cima
     const deslocamentoCentroFumacaY = f.posY + (f.tamanho / 2);
 
     gl.uniform2f(posicaoLoc, f.posX, deslocamentoCentroFumacaY);
@@ -764,7 +767,6 @@ export function desenhaPlacarDinheiro(gl, posXInicial = 0.68, posY = 0.85) {
   gl.uniform2f(texOffsetLoc, 0.0, 0.0);
   gl.uniform2f(texSizeLoc, 1.0, 1.0);
 
-  // 🟢 Proporção ajustada para tela retangular (evita que o número fique esmagado)
   const larguraDigito = 0.04; 
   const alturaDigito = 0.08; 
   const espacamento = 0.10; 
@@ -788,5 +790,98 @@ export function desenhaPlacarDinheiro(gl, posXInicial = 0.68, posY = 0.85) {
     gl.uniform1i(texturaLoc, 0);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+}
+
+export function desenhaDefesas(gl) {
+  if (!defesasColocadas || defesasColocadas.length === 0) return;
+
+  for (const defesa of defesasColocadas) {
+    if (!defesa.viva) continue;
+
+    // Desenha exclusivamente as torres posicionadas no tabuleiro
+    if (defesa.tipo === 'sapos') {
+      desenhaSapo(gl, defesa.posX, defesa.posY);
+    } else if (defesa.tipo === 'lagartos') {
+      desenhaLagarto(gl, defesa.posX, defesa.posY);
+    } else if (defesa.tipo === 'sprays') {
+      desenhaSpray(gl, defesa.posX, defesa.posY);
+    } else if (defesa.tipo === 'veneno') {
+      desenhaVeneno(gl, defesa.posX, defesa.posY);
+    }
+  }
+}
+
+export function desenhaBotoes(gl, texturaBotoes, listaBotoes, defesaSelecionada) {
+  if (!texturaBotoes || !listaBotoes || listaBotoes.length === 0) return;
+
+  if (typeof programa !== 'undefined' && programa) {
+    gl.useProgram(programa);
+  }
+
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
+
+  // Dimensões totais da textura
+  const IMG_W = 192.0;
+  const IMG_H = 144.0;
+
+  // Tamanho nominal das células da grelha
+  const CELL_W = 24.0;  // 192 / 8
+  const CELL_H = 20.0;  // Ajustado para 20px exatos para não cortar a borda superior
+
+  // Recorte UV por célula
+  const texSizeU = CELL_W / IMG_W;
+  const texSizeV = CELL_H / IMG_H;
+
+  // 1. DESENHAR OS BOTÕES VERMELHOS DE FUNDO
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texturaBotoes);
+  gl.uniform1i(texturaLoc, 0);
+
+  for (const btn of listaBotoes) {
+    const estaSelecionado = (defesaSelecionada === btn.tipo);
+
+    // 🔴 BOTÃO VERMELHO: Coluna 6
+    // Com UNPACK_FLIP_Y_WEBGL ativado:
+    // Linha 2 = Normal | Linha 3 = Pressionado
+    const coluna = 6;
+    const linha = estaSelecionado ? 3 : 2;
+
+    // Converte para UV
+    const texOffsetU = (coluna * CELL_W) / IMG_W;
+    const texOffsetV = (linha * (IMG_H / 7.0)) / IMG_H;
+
+    gl.uniform2f(texOffsetLoc, texOffsetU, texOffsetV);
+    gl.uniform2f(texSizeLoc, texSizeU, texSizeV);
+
+    gl.uniform2f(tamanhoLoc, btn.largura, btn.altura);
+    gl.uniform2f(posicaoLoc, btn.x, btn.y);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  // 2. DESENHAR OS ÍCONES (SAPO, LAGARTO, SPRAY E VENENO)
+  for (const btn of listaBotoes) {
+    const estaSelecionado = (defesaSelecionada === btn.tipo);
+
+    const lIcone = btn.largura * 0.40;
+    const aIcone = btn.altura * 0.40;
+    
+    // Posição vertical centralizada na caixa
+    const yAjustado = estaSelecionado ? btn.y + 0.015 : btn.y + 0.03;
+
+    if (btn.tipo === 'sapos' && typeof texturaSapo !== 'undefined' && texturaSapo) {
+      desenhaSapo(gl, btn.x, yAjustado, lIcone, aIcone);
+    } else if (btn.tipo === 'lagartos' && typeof texturaLagarto !== 'undefined' && texturaLagarto) {
+      desenhaLagarto(gl, btn.x, yAjustado, lIcone, aIcone);
+    } else if (btn.tipo === 'sprays' && typeof texturaSpray !== 'undefined' && texturaSpray) {
+      desenhaSpray(gl, btn.x, yAjustado, lIcone, aIcone);
+    } else if (btn.tipo === 'veneno' && typeof texturaVeneno !== 'undefined' && texturaVeneno) {
+      desenhaVeneno(gl, btn.x, yAjustado, lIcone, aIcone);
+    }
   }
 }
