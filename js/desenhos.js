@@ -6,6 +6,7 @@ import {
   frameBesouro, 
   frameLingua, 
   frameFormigaVermelha,  
+  frameMoscaTiro, 
   moscaViva,
   besouroVivo,
   formigasAtivas,
@@ -14,7 +15,16 @@ import {
   fumacasAtivas,
   usosRestantesSpray,
   posXSpray,
-  posYSpray
+  posYSpray,
+  posXMosca,
+  posYMosca,
+  moscaOlhandoEsquerda,
+  posXBolo,
+  posYBolo,
+  boloVivo,
+  moscaAtirando,
+  projeteis,
+  particulasTiro
 
 } from './animations.js';
 
@@ -31,6 +41,9 @@ import {
   texturaSapo, 
   texturaMoeda, 
   texturaFormigaVermelha,
+  texturaMoscaTiro,
+  texturaProjetil,
+  texturaParticulaTiro,
   texturasFumacaSpray,
   texturaVida
 
@@ -39,14 +52,24 @@ import {
 import { programa } from './glSetup.js';
 
 
+// Lê o estado do bolo e pede pra GPU desenhar, ou não ele (por enquanto).
 export function desenhaBolo(gl) {
+
+  //Se o bolo morre, não desenha ele.
+  if (!boloVivo) return;  
+
+
+  /*u_position e u_size: dizem ao vertex shader onde fica o 
+  centro do retângulo e o quanto ele cresce */
+
   // Posição do bolo
   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
-  gl.uniform2f(posicaoLoc, -0.65, 0.0)
+  gl.uniform2f(posicaoLoc, posXBolo, posYBolo)
 
   // Tamanho do bolo na tela
   const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
   gl.uniform2f(tamanhoLoc, 0.18, 0.17)
+
 
   // RESET DAS COORDENADAS DE TEXTURA (UV)
   // Garante que a textura não usará o recorte do último sprite desenhado
@@ -56,9 +79,10 @@ export function desenhaBolo(gl) {
   const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
   gl.uniform2f(texSizeLoc, 1.0, 1.0) // Usa 100% da largura e altura da imagem
 
+
   // Seleciona e vincula a textura do bolo
   gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, texturaBolo)
+  gl.bindTexture(gl.TEXTURE_2D, texturaBolo) //avisa o fragment shader onde a textura está (TEXTURE0, pos = 0).
 
   const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
   gl.uniform1i(texturaLoc, 0)
@@ -301,35 +325,144 @@ export function desenhaBesouro(gl) {
 
 export function desenhaMosca(gl) {
   if (!moscaViva) return;
+
+  // Escolhe a spritesheet: tiro (7 quadros) ou idle (16 quadros)
+
+  // Escolha padrão: mosca voando.
+  let textura = texturaMosca
+  let totalFrames = 16 
+  let frame = frameMosca
+
+  // Se a mosca já pode atirar e a textura tá pronta, 
+  // então usa a textura da mosca de 7 frames, ao invés da de 16.
+  if (moscaAtirando && texturaMoscaTiro) {
+    textura = texturaMoscaTiro
+    totalFrames = 7
+    frame = frameMoscaTiro
+  }
+
+
+  /*Arrumando a textura:*/
   // Posição da mosca na tela
   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
-  gl.uniform2f(posicaoLoc, 0.0, 0.4) // x: 0.0 (centro), y: 0.4 (no alto)
+  gl.uniform2f(posicaoLoc, posXMosca, posYMosca) // x: 0.0 (centro), y: 0.4 (no alto)
 
   // Tamanho do renderizador da mosca
   const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
   gl.uniform2f(tamanhoLoc, 0.2, 0.2)
 
-  // A spritesheet da mosca possui 16 quadros organizados horizontalmente
-  const totalFrames = 16
-  const larguraSprite = 1 / totalFrames
+
+  const larguraSprite = 1 / totalFrames //são vários quadros, lado a lado, por isso a divisão.
   const alturaSprite = 1.0
 
   const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
-  gl.uniform2f(texOffsetLoc, frameMosca * larguraSprite, 0.0)
+  gl.uniform2f(texOffsetLoc, frame * larguraSprite, 0.0)
 
   const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
   gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
 
   // Seleciona a textura
   gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, texturaMosca)
-
+  gl.bindTexture(gl.TEXTURE_2D, textura)
+  
   const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
   gl.uniform1i(texturaLoc, 0)
 
+  // vira a sprite para que ela olhe pra esquerda.
+  //a_texcoord.x antes do recorte, então o espelhamento 
+  // acontece dentro do quadro, sem trocar de quadro.
+  const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+  gl.uniform1i(flipXLoc, moscaOlhandoEsquerda ? 1 : 0)
+
   // Desenha
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+
+  // IMPORTANTE: desliga o flip, senão o sapo e a moeda (desenhados depois) saem invertidos
+  gl.uniform1i(flipXLoc, 0)
 }
+
+
+export function desenhaProjeteis(gl) {
+
+  //Se não há projéteis no ar, não há o que desenhar.
+  if (projeteis.length === 0) return;
+
+  //Pega os endereços do vertex shader/ fragment shader e coloca em variáveis
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
+  const anguloLoc = gl.getUniformLocation(programa, 'u_angle')
+
+  // Regra de três:
+  // Quadro da mosca: 32 × 32 px, u_size = 0.2, então ocupa 0.4 de largura na tela.
+  // Dessa forma, cada pixel vale 0.4 / 32 = 0.0125 na tela.
+  // u_size é a metade disso (metade da largura do sprite): 0.00625.
+  // Multiplicando pelo quadro do projétil:
+  // u_size.x = 16 × 0.00625 = 0.1
+  // u_size.y =  8 × 0.00625 = 0.05
+
+  gl.uniform2f(tamanhoLoc, 0.1, 0.05)
+
+
+  // O PNG do projétil tem 32 × 8 px, com 2 quadros de 16 × 8 lado a lado.
+  // por isso precisamos dividir os valores totais de px nas frações
+  // da imagem que cada quadro ocupa: 
+  // 16/32 = 1/2 na largura e 8/8 = 1 na altura.
+
+  gl.uniform2f(texSizeLoc, 1 / 2, 1.0)   
+
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texturaProjetil)
+  gl.uniform1i(texturaLoc, 0)
+
+  //Fica atualizando essas informações a cada frame, a fim de fazer 
+  // uma animação bonitinha, contínua.
+  for (const p of projeteis) {
+    gl.uniform2f(posicaoLoc, p.posX, p.posY)
+    gl.uniform2f(texOffsetLoc, p.frame * 0.5, 0.0)
+    gl.uniform1f(anguloLoc, p.angulo)
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4) // uma função de desenhar por projétil.
+  }
+
+  gl.uniform1f(anguloLoc, 0.0)   // desliga a rotação pros próximos desenhos
+}
+
+export function desenhaParticulasTiro(gl) {
+
+  //Se não há partículas ativas, não há o que desenhar.
+  if (particulasTiro.length === 0) return;
+
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
+  const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
+
+  // 16x16 px, 6 quadros lado a lado, mesmo cálculo de regra de 3.
+  gl.uniform2f(tamanhoLoc, 0.1, 0.1)
+  // O PNG tem 6 quadros lado a lado: cada um ocupa 1/6 da largura
+  gl.uniform2f(texSizeLoc, 1 / 6, 1.0)
+
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texturaParticulaTiro)
+  gl.uniform1i(texturaLoc, 0)
+
+
+  //Cada partícula sai pro mesmo lado para onde a mosca olha (flipXLoc garante isso).
+  for (const p of particulasTiro) {
+    gl.uniform2f(posicaoLoc, p.posX, p.posY)
+    gl.uniform2f(texOffsetLoc, p.frame / 6, 0.0)
+    gl.uniform1i(flipXLoc, p.olhandoEsquerda ? 1 : 0)
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+  }
+
+  gl.uniform1i(flipXLoc, 0) //desliga o flip pra não dar problema das coisas saírem invertidas.
+}
+
+
 
 export function desenhaSapo(gl) {
   const larguraTotal = 208

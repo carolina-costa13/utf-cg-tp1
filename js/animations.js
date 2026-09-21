@@ -38,9 +38,9 @@ let tempoAnimacaoBesouro = 0;
 let tempoAnimacaoMoeda = 0;
 
 // MOSCA
-export let posXMosca = 0.0;
+export let posXMosca = 1.2;
 export let posYMosca = 0.4;
-export let vidaMosca = 2;
+export let vidaMosca = 10;
 export let moscaViva = true;
 
 // BESOURO
@@ -61,6 +61,13 @@ export function atualizaLogica(quantoTempo) {
   animacaoLagarto(quantoTempo);
   animacaoBesouro(quantoTempo);
   animacaoMoeda(quantoTempo);
+
+  atualizaMosca(quantoTempo); 
+  atualizaProjeteis(quantoTempo);
+  atualizaParticulasTiro(quantoTempo);
+  
+  //é como se fosse o relógio do jogo, usado na dificuldade
+  tempoJogoTotal += quantoTempo; 
   
   tempoJogoTotal += quantoTempo;
 
@@ -219,10 +226,15 @@ export function atualizaFormigasVermelhas(quantoTempo) {
     }
   }
 }
+
+
 // ==========================================
 // FUNÇÕES UTILITÁRIAS E LÓGICA GERAL
 // ==========================================
 
+/*Converte a ideia de matriz para coordenadas. Tradutor de idiomas
+entre a lógica do programa e o WebGL. Usada pelas funções que geram 
+as hordas */
 export function matrizParaWebGL(linha, coluna) {
   const minX = -0.5, maxX = 0.5;
   const minY = -0.5, maxY = 0.5;
@@ -239,9 +251,12 @@ const posXSapo = -0.5;
 const posYSapo = -0.4;
 const raioSapo = 0.12; // Raio de colisão do corpo do Sapo
 
+
 // ==========================================
 // COLISÃO DO SAPO
 // ==========================================
+
+
 export function checaColisaoSapo() {
   const sapoAtacando = (frameLingua === 2 || frameLingua === 1);
   if (!sapoAtacando) return;
@@ -655,5 +670,254 @@ export function atualizaFumaca(quantoTempo) {
     if (f.vida <= 0) {
       fumacasAtivas.splice(i, 1);
     }
+  }
+}
+// ==========================================
+// BOLO 
+// ==========================================
+/*O que acontece com o bolo ao ser atacado por qualquer inimigo */
+export const posXBolo = -0.65;
+export const posYBolo = 0.0;
+export let vidaBolo = 10;
+export let boloVivo = true;
+
+/*Como o bolo não ataca, então só tem essa função, só pode ser atacado*/
+export function causarDanoBolo(dano) {
+  if (!boloVivo) return;
+  vidaBolo -= dano;
+  if (vidaBolo <= 0) {
+    vidaBolo = 0;
+    boloVivo = false;
+    console.log("O bolo foi devorado! Game Over.");
+  }
+}
+
+/* ==========================================
+   TORRES: lista de tudo que os inimigos podem atacar.
+   Toda torre tem a mesma "cara": posX, posY, viva e receberDano().
+   Dessa forma a mosca não precisa saber quem é quem, é só chamar 
+   uma torre e tacar o pau nela.
+  ==========================================*/
+export const torres = [
+  {
+    nome: 'bolo',
+    posX: posXBolo,
+    posY: posYBolo,
+    // função que retorna sempre o valor atual da vida daquela torre.
+    get viva() { return boloVivo; },
+    // Guarda a função receberDano na torre. Quando é atingido chama ela.
+    receberDano: causarDanoBolo
+  },
+
+  {
+    nome: 'sapo',
+    posX: posXSapo,
+    posY: posYSapo,
+    get viva() { return sapoVivo; },
+    receberDano: causarDanoSapo
+  },
+
+
+];
+
+
+// ==========================================
+// MOSCA (ataque à distância)
+// ==========================================
+/*O canvas vai de -1 a 1, ou seja, a tela tem 2 unidades de largura.
+  Então 0.2 por segundo é 10% da tela por segundo, e atravessar a tela 
+  inteira leva 10 s.*/
+const MOSCA_VELOCIDADE = 0.2;       
+const MOSCA_ALCANCE = 0.4;          // distância a partir da qual ela para e atira
+const MOSCA_DANO = 0.5;               // dano de cada projétil
+
+// Animação fly_shoot (da mosca atirando): 7 quadros de 83 ms
+const TIRO_TOTAL_FRAMES = 7;
+const TIRO_DURACAO_FRAME = 0.083;
+const TIRO_FRAME_DISPARO = 4;       // quadro em que o projétil sai (ajuste olhando a sprite)
+const TIRO_PAUSA = 0.6;             // descanso entre um tiro e outro
+const TIRO_DURACAO_ANIM = TIRO_TOTAL_FRAMES * TIRO_DURACAO_FRAME;
+const TIRO_CICLO = TIRO_DURACAO_ANIM + TIRO_PAUSA;
+
+// De onde o tiro sai, em relação ao centro da mosca (ajuste a olho)
+const BOCA_DESLOC_X = 0.12;
+const BOCA_DESLOC_Y = -0.02;
+
+export let moscaOlhandoEsquerda = true;
+export let moscaAtacando = false;   // está no alcance (vai parar de andar e atacar)
+export let moscaAtirando = false;   // está tocando a animação do tiro agora
+export let frameMoscaTiro = 0;
+
+let alvoMosca = null;
+let tempoCicloTiro = 0;
+let jaDisparou = false;
+
+// Essa função é chamada mais a frente.
+function torreMaisProxima(x, y) {
+  let melhor = null;
+  let melhorDist = Infinity;
+  for (const torre of torres) {
+    //Pula as torres mortas
+    if (!torre.viva) continue;
+
+    //Calcula a distância das vivas e pega a menor
+    const d = Math.hypot(torre.posX - x, torre.posY - y);
+    if (d < melhorDist) {
+      melhorDist = d;
+      melhor = torre;
+    }
+  }
+  return melhor;
+}
+
+
+//Faz a mosca andar, escolher o alvo e atirar (coração).
+export function atualizaMosca(quantoTempo) {
+  // Se a mosca tá morta, deixa quieto.
+  if (!moscaViva) return;
+
+  // Enquanto está atirando numa torre viva, continua nela (um alvo por vez).
+  // Caso contrário, escolhe a torre viva mais próxima.
+  const travadaNoAlvo = moscaAtacando && alvoMosca && alvoMosca.viva;
+  if (!travadaNoAlvo) {
+    alvoMosca = torreMaisProxima(posXMosca, posYMosca);
+    moscaAtacando = false;
+  }
+
+  if (!alvoMosca) {
+    // sem torres vivas: segue voando pra esquerda
+    moscaAtacando = false;
+    moscaAtirando = false;
+    moscaOlhandoEsquerda = true;
+    if (posXMosca > -1.3) posXMosca -= MOSCA_VELOCIDADE * quantoTempo;
+    return;
+  }
+
+  //Calcula a distância da mosca até o seu alvo e vai andando na direção dele.
+  const dx = alvoMosca.posX - posXMosca;
+  const dy = alvoMosca.posY - posYMosca;
+  const distancia = Math.hypot(dx, dy);
+
+  if (Math.abs(dx) > 0.01) moscaOlhandoEsquerda = dx < 0;
+
+
+  //Se tá longe do alvo, continua aproximando
+  if (distancia > MOSCA_ALCANCE) {
+    // ANDAR em direção ao alvo
+    moscaAtacando = false;
+    moscaAtirando = false;
+    tempoCicloTiro = 0;
+    jaDisparou = false;
+    // A conta dx / distancia dá a direção com comprimento 1, 
+    // e multiplicando por velocidade × quantoTempo (m/s * s = m) 
+    // você obtém quanto a mosca deve andar neste frame.
+    posXMosca += (dx / distancia) * MOSCA_VELOCIDADE * quantoTempo;
+    posYMosca += (dy / distancia) * MOSCA_VELOCIDADE * quantoTempo;
+    return;
+  }
+
+  // O alvo está no alcance, endão ela deve parar e atirar:
+  // um ciclo = animação do tiro + pausa
+  moscaAtacando = true;
+  tempoCicloTiro += quantoTempo;
+  if (tempoCicloTiro >= TIRO_CICLO) {
+    tempoCicloTiro -= TIRO_CICLO;
+    jaDisparou = false;
+  }
+
+  moscaAtirando = tempoCicloTiro < TIRO_DURACAO_ANIM;
+  frameMoscaTiro = Math.min(
+    TIRO_TOTAL_FRAMES - 1,
+    Math.floor(tempoCicloTiro / TIRO_DURACAO_FRAME)
+  );
+
+  // Solta o projétil uma vez por ciclo, no quadro certo da animação
+  if (moscaAtirando && !jaDisparou && frameMoscaTiro >= TIRO_FRAME_DISPARO) {
+    disparaProjetil(alvoMosca);
+    jaDisparou = true;
+  }
+}
+
+// ==========================================
+// PROJÉTEIS E PARTÍCULAS DE TIRO
+// ==========================================
+const PROJETIL_VELOCIDADE = 0.9;
+const PROJETIL_RAIO_ACERTO = 0.1;     // quão perto do centro da torre conta como acerto
+const PROJETIL_DURACAO_FRAME = 0.5;   // 2 quadros de 500 ms
+
+const PARTICULA_TOTAL_FRAMES = 6;
+const PARTICULA_DURACAO_FRAME = 0.08;
+
+export let projeteis = [];
+export let particulasTiro = [];
+
+function disparaProjetil(alvo) {
+  const direcao = moscaOlhandoEsquerda ? -1 : 1;
+  // De onde sai o projétil
+  const origemX = posXMosca + direcao * BOCA_DESLOC_X;
+  const origemY = posYMosca + BOCA_DESLOC_Y;
+
+  // Cada projétil guarda o objeto torre mais perto
+  projeteis.push({
+    posX: origemX,
+    posY: origemY,
+    alvo: alvo,
+    angulo: 0,
+    tempo: 0,
+    frame: 0
+  });
+
+  particulasTiro.push({
+    posX: origemX,
+    posY: origemY,
+    olhandoEsquerda: moscaOlhandoEsquerda,
+    tempo: 0,
+    frame: 0
+  });
+}
+
+export function atualizaProjeteis(quantoTempo) {
+  for (let i = projeteis.length - 1; i >= 0; i--) {
+    const p = projeteis[i];
+
+    // se a torre já morreu, o projétil some
+    if (!p.alvo.viva) {
+      //função "splice": remove um item e desloca os seguintes
+      projeteis.splice(i, 1);
+      continue;
+    }
+
+    const dx = p.alvo.posX - p.posX;
+    const dy = p.alvo.posY - p.posY;
+    const distancia = Math.hypot(dx, dy);
+
+    // Se chegou perto, acertou. Causa dano no elemento da lista de torres e some
+    if (distancia <= PROJETIL_RAIO_ACERTO) {
+      p.alvo.receberDano(MOSCA_DANO);
+      projeteis.splice(i, 1);
+      continue;
+    }
+
+    // Se ainda não atingiu o alvo, vai voando em direção a ele.
+    const passo = Math.min(PROJETIL_VELOCIDADE * quantoTempo, distancia); //Impede que o projétil passe do alvo 
+    p.posX += (dx / distancia) * passo;
+    p.posY += (dy / distancia) * passo;
+    p.angulo = Math.atan2(dy, dx);
+
+    p.tempo += quantoTempo;
+    p.frame = Math.floor(p.tempo / PROJETIL_DURACAO_FRAME) % 2;
+  }
+}
+
+export function atualizaParticulasTiro(quantoTempo) {
+  for (let i = particulasTiro.length - 1; i >= 0; i--) {
+    const p = particulasTiro[i];
+    p.tempo += quantoTempo;
+
+    if (p.tempo >= PARTICULA_TOTAL_FRAMES * PARTICULA_DURACAO_FRAME) {
+      particulasTiro.splice(i, 1);
+      continue;
+    }
+    p.frame = Math.floor(p.tempo / PARTICULA_DURACAO_FRAME);
   }
 }
