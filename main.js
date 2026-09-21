@@ -1,5 +1,13 @@
 import { configuraTudo, programa, vao } from './js/glSetup.js';
-import { atualizaLogica, vidaSapo } from './js/animations.js';
+
+import { 
+  atualizaLogica, 
+  atualizaMoedas, 
+  verificarCliqueMoeda, 
+  pontuacaoDinheiro, 
+  vidaSapo
+} from './js/animations.js';
+
 import { 
   desenhaCenario, 
   desenhaBolo, 
@@ -16,7 +24,8 @@ import {
   desenhaFumaca,
   desenhaProjeteis,
   desenhaParticulasTiro,
-
+  desenhaMoedaPlacar, 
+  desenhaPlacarDinheiro
 } from './js/desenhos.js';
 
 import { 
@@ -33,9 +42,13 @@ import {
   texturaFormigaVermelha,
   texturaVida, 
   texturasFumacaSpray,
-   texturaProjetil,
-  texturaParticulaTiro
+  texturaProjetil,
+  texturaParticulaTiro,
+  texturaMoedaPlacar,
+  texturasCoinCounter
 } from './js/textures.js';
+
+const canvas = document.getElementById('meuCanvas');
 
 /*Carrega as texturas/imagens*/
 const gl = configuraTudo();
@@ -64,16 +77,21 @@ function desenhaCena(gl) {
   if (texturaFormigaVermelha) desenhaFormigaVermelha(gl);
   if (texturaVida) desenhaBarraVida(gl,vidaSapo,5,6);
   if (texturasFumacaSpray)desenhaFumaca(gl);
-  
+
   if (texturaParticulaTiro) desenhaParticulasTiro(gl);
   if (texturaProjetil) desenhaProjeteis(gl);
+  if(texturaMoedaPlacar) desenhaMoedaPlacar(gl, 0.50, 0.85);     // Ícone da moeda
+  if(texturasCoinCounter)desenhaPlacarDinheiro(gl, 0.68, 0.85);
 }
+
 
 function loopPrincipal(agora) {
   const quantoPassou = (agora - logoAntes) / 1000;
   logoAntes = agora;
 
   atualizaLogica(quantoPassou);
+  atualizaMoedas(quantoPassou);
+
   desenhaCena(gl);
 
   requestAnimationFrame(loopPrincipal);

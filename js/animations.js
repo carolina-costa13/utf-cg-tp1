@@ -49,6 +49,12 @@ export let posYBesouro = -0.30;
 export let vidaBesouro = 4;
 export let besouroVivo = true;
 
+export let pontuacaoDinheiro = 0;
+export const moedasAtivas = [];
+
+let tempoParaProximaMoeda = 0;
+const INTERVALO_MOEDA = 15.0; 
+
 
 // TABULEIRO DA MATRIZ (11 linhas x 7 colunas)
 export const LINHAS = 11;
@@ -919,5 +925,60 @@ export function atualizaParticulasTiro(quantoTempo) {
       continue;
     }
     p.frame = Math.floor(p.tempo / PARTICULA_DURACAO_FRAME);
+  }
+}
+
+// ==========================================
+// SISTEMA DE MOEDAS
+// ==========================================
+const LIMITE_X_MIN = -0.7;
+const LIMITE_X_MAX = 0.7;
+const LIMITE_Y_MIN = -0.7;
+const LIMITE_Y_MAX = 0.7;
+
+const TAMANHO_MOEDA = 0.10;
+
+export function criarMoedaAleatoria() {
+  const posX = LIMITE_X_MIN + Math.random() * (LIMITE_X_MAX - LIMITE_X_MIN);
+  const posY = LIMITE_Y_MIN + Math.random() * (LIMITE_Y_MAX - LIMITE_Y_MIN);
+
+  moedasAtivas.push({
+    posX: posX,
+    posY: posY,
+    coletada: false
+  });
+}
+
+export function verificarCliqueMoeda(xWebGL, yWebGL) {
+  // Aumenta o raio de detecção (ex: 0.12) para que o clique seja preciso
+  const RAIO_HITBOX = 0.12;
+
+  for (let i = moedasAtivas.length - 1; i >= 0; i--) {
+    const moeda = moedasAtivas[i];
+
+    const dx = xWebGL - moeda.posX;
+    const dy = yWebGL - moeda.posY;
+    const distancia = Math.hypot(dx, dy);
+
+    if (distancia <= RAIO_HITBOX) {
+      // 1. Incrementa o dinheiro
+      pontuacaoDinheiro += 50;
+      console.log(`Moeda coletada! Total: ${pontuacaoDinheiro}`);
+
+      // 2. Remove a moeda da lista para fazê-la sumir da tela
+      moedasAtivas.splice(i, 1);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export function atualizaMoedas(quantoTempo) {
+  tempoParaProximaMoeda += quantoTempo;
+
+  if (tempoParaProximaMoeda >= INTERVALO_MOEDA) {
+    criarMoedaAleatoria();
+    tempoParaProximaMoeda = 0;
   }
 }

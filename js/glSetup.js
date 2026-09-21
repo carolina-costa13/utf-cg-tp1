@@ -1,6 +1,8 @@
 export let programa;
 export let vao;
 
+import { verificarCliqueMoeda } from './animations.js';
+
 import { 
   carregaTexturaCenario, 
   carregaTexturaBolo, 
@@ -17,7 +19,10 @@ import {
   carregaTexturaVida,
   carregaTexturaMoscaTiro,
   carregaTexturaProjetil,
-  carregaTexturaParticulaTiro
+  carregaTexturaParticulaTiro,
+  carregaTexturaCoinCounter,
+  carregaTexturaMoedaPlacar
+
   
 } from './textures.js';
 
@@ -36,6 +41,8 @@ import {
     //canvas.addEventListener('mousemove', mouseMexeu)
     //canvas.addEventListener('click', mouseClicou)
     //document.addEventListener('keydown', teclaPressionada)
+      registraCliqueCanvas(canvas)
+    
  
  
    // 3. cria, compila e linka programa shader
@@ -191,6 +198,8 @@ carregaTexturaFormigaVermelha(gl)
 carregaTexturaMoscaTiro(gl)
 carregaTexturaProjetil(gl)
 carregaTexturaParticulaTiro(gl)
+carregaTexturaCoinCounter(gl)
+carregaTexturaMoedaPlacar(gl)
 
 
   // 5. inicia valores para variáveis de estado
@@ -198,4 +207,21 @@ carregaTexturaParticulaTiro(gl)
     gl.useProgram(programa)   // shader: que criamos
 
     return gl
+}
+
+export function registraCliqueCanvas(canvas) {
+  canvas.addEventListener('click', (event) => {
+    const rect = canvas.getBoundingClientRect();
+
+    // 1. Calcula a posição normalizada do clique dentro do canvas (0.0 até 1.0)
+    const normalizedX = (event.clientX - rect.left) / rect.width;
+    const normalizedY = (event.clientY - rect.top) / rect.height;
+
+    // 2. Converte para coordenadas de clipe WebGL (-1.0 até 1.0)
+    const xWebGL = normalizedX * 2 - 1;
+    const yWebGL = -(normalizedY * 2 - 1); // Inverte o eixo Y
+
+    // 3. Executa a checagem de clique
+    verificarCliqueMoeda(xWebGL, yWebGL);
+  });
 }

@@ -24,7 +24,9 @@ import {
   boloVivo,
   moscaAtirando,
   projeteis,
-  particulasTiro
+  particulasTiro,
+  moedasAtivas,
+  pontuacaoDinheiro
 
 } from './animations.js';
 
@@ -45,7 +47,9 @@ import {
   texturaProjetil,
   texturaParticulaTiro,
   texturasFumacaSpray,
-  texturaVida
+  texturaVida,
+  texturaMoedaPlacar,
+  texturasCoinCounter
 
 } from './textures.js';
 
@@ -529,44 +533,49 @@ export function desenhaSapo(gl) {
 }
 
 export function desenhaMoeda(gl) {
-  // Posição no canvas (Ajuste onde deseja colocar a moeda)
-  const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
-  gl.uniform2f(posicaoLoc, 0.0, 0.2) 
+  // 1. Se não houver moedas na tela, não desenha nada
+  if (!moedasAtivas || moedasAtivas.length === 0) return;
 
-  // Tamanho no Canvas (1:1 de proporção para manter quadrada)
-  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
-  gl.uniform2f(tamanhoLoc, 0.10, 0.10)
+  if (typeof programa !== 'undefined' && programa) {
+    gl.useProgram(programa);
+  }
 
-  // DIMENSÕES DA SPRITE SHEET
-  const larguraTotal = 180 // 9 frames x 20px
-  const alturaTotal = 20
-  
-  const larguraFrame = 20
-  const alturaFrame = 20
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
 
-  // Cálculo UV em pixels (linha única, então Y sempre começa na base)
-  const pixelX = frameMoeda * larguraFrame
-  const pixelY = 0 
+  // DIMENSÕES DA SPRITE SHEET (180x20px -> 9 frames)
+  const larguraTotal = 180;
+  const alturaTotal = 20;
+  const larguraFrame = 20;
+  const alturaFrame = 20;
 
-  const posXUV = pixelX / larguraTotal
-  const posYUV = pixelY / alturaTotal
+  // Cálculo de UV do quadro atual da animação
+  const pixelX = frameMoeda * larguraFrame;
+  const pixelY = 0;
 
-  const texWidth = larguraFrame / larguraTotal  // 20 / 180 = 0.1111
-  const texHeight = alturaFrame / alturaTotal  // 20 / 20 = 1.0
+  const posXUV = pixelX / larguraTotal;
+  const posYUV = pixelY / alturaTotal;
 
-  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
-  gl.uniform2f(texOffsetLoc, posXUV, posYUV)
+  const texWidth = larguraFrame / larguraTotal; // 0.1111
+  const texHeight = alturaFrame / alturaTotal;  // 1.0
 
-  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
-  gl.uniform2f(texSizeLoc, texWidth, texHeight)
+  // Configura o recorte de textura e tamanho (igual para todas as moedas)
+  gl.uniform2f(texOffsetLoc, posXUV, posYUV);
+  gl.uniform2f(texSizeLoc, texWidth, texHeight);
+  gl.uniform2f(tamanhoLoc, 0.10, 0.10); // Tamanho da moeda no WebGL
 
-  gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, texturaMoeda)
+  // Activa a textura da moeda
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texturaMoeda);
+  gl.uniform1i(texturaLoc, 0);
 
-  const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
-  gl.uniform1i(texturaLoc, 0)
-
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+  for (const moeda of moedasAtivas) {
+    gl.uniform2f(posicaoLoc, moeda.posX, moeda.posY);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
 }
 
 export function desenhaFormigaVermelha(gl) {
@@ -706,4 +715,78 @@ export function desenhaFumaca(gl) {
   }
 
   gl.depthMask(true);
+}
+
+export function desenhaMoedaPlacar(gl, posX = 0.50, posY = 0.85) {
+  if (!texturaMoedaPlacar) return;
+
+  if (typeof programa !== 'undefined' && programa) {
+    gl.useProgram(programa);
+  }
+
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
+
+  // Usa a textura inteira
+  gl.uniform2f(texOffsetLoc, 0.0, 0.0);
+  gl.uniform2f(texSizeLoc, 1.0, 1.0);
+
+  // Define a posição e o tamanho do ícone no HUD
+  gl.uniform2f(posicaoLoc, posX, posY);
+  gl.uniform2f(tamanhoLoc, 0.08, 0.08);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texturaMoedaPlacar);
+  gl.uniform1i(texturaLoc, 0);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+/**
+ * Converte a pontuação numérica em dígitos (sprites 0-9) e os desenha em sequência
+ */
+export function desenhaPlacarDinheiro(gl, posXInicial = 0.68, posY = 0.85) {
+  if (!texturasCoinCounter || texturasCoinCounter.length === 0) return;
+
+  if (typeof programa !== 'undefined' && programa) {
+    gl.useProgram(programa);
+  }
+
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
+
+  gl.uniform2f(texOffsetLoc, 0.0, 0.0);
+  gl.uniform2f(texSizeLoc, 1.0, 1.0);
+
+  // 🟢 Proporção ajustada para tela retangular (evita que o número fique esmagado)
+  const larguraDigito = 0.04; 
+  const alturaDigito = 0.08; 
+  const espacamento = 0.10; 
+
+  const digitosStr = String(pontuacaoDinheiro).split('');
+
+  for (let i = 0; i < digitosStr.length; i++) {
+    const digitoVal = parseInt(digitosStr[i], 10);
+    const texturaDigito = texturasCoinCounter[digitoVal];
+
+    if (!texturaDigito) continue;
+
+    const posX = posXInicial + (i * espacamento);
+
+    gl.uniform2f(posicaoLoc, posX, posY);
+    // Aplica largura e altura ajustadas
+    gl.uniform2f(tamanhoLoc, larguraDigito, alturaDigito);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texturaDigito);
+    gl.uniform1i(texturaLoc, 0);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
 }

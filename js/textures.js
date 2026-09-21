@@ -11,6 +11,12 @@ export let texturaMoeda;
 export let texturaFormigaVermelha;
 export let texturasFumacaSpray = [];
 export let texturaVida = null;
+export let texturaMoscaTiro;
+export let texturaProjetil;
+export let texturaParticulaTiro;
+export let texturaMoedaPlacar = null;
+export let texturasCoinCounter = [];
+
 
 export function carregaTexturaCenario(gl) {
     // (1) carrega a imagem
@@ -370,9 +376,6 @@ export function carregaTexturaVida(gl) {
 /* ==========================================
    ATAQUE MOSCA + PROJÉTEIS
   ==========================================*/
-export let texturaMoscaTiro;
-export let texturaProjetil;
-export let texturaParticulaTiro;
 
 // Carrega uma imagem e só entrega a textura quando ela está pronta. 
 // Ela não é chamada lá no glSetup, é usada só aqui mesmo.
@@ -422,4 +425,61 @@ export function carregaTexturaProjetil(gl) {
 export function carregaTexturaParticulaTiro(gl) {
     criaTexturaDeImagem(gl, "sprites/fly_monster_by_yurinikolai/shoot_particle/spritesheet/shoot_particle.png",
         function (tex) { texturaParticulaTiro = tex })
+}
+
+export function carregaTexturaMoedaPlacar(gl){
+    criaTexturaDeImagem(gl, "sprites/coins/coinCounter/coinCounterIcon.png",
+        function (tex) { texturaMoedaPlacar = tex })
+}
+
+
+export function carregaTexturaCoinCounter(gl) {
+    // 1. Lista com o caminho de todos os quadros da animação (0 a 9)
+    const caminhosImagensCoinCounter = [
+        "sprites/coins/coinCounter/0.png",
+        "sprites/coins/coinCounter/1.png",
+        "sprites/coins/coinCounter/2.png",
+        "sprites/coins/coinCounter/3.png",
+        "sprites/coins/coinCounter/4.png",
+        "sprites/coins/coinCounter/5.png",
+        "sprites/coins/coinCounter/6.png",
+        "sprites/coins/coinCounter/7.png",
+        "sprites/coins/coinCounter/8.png",
+        "sprites/coins/coinCounter/9.png"
+    ];
+
+    // Limpa o array caso a função seja chamada novamente
+    texturasCoinCounter = [];
+
+    // 2. Percorre cada caminho e cria a textura correspondente
+    caminhosImagensCoinCounter.forEach((caminho) => {
+        const textura = gl.createTexture();
+        texturasCoinCounter.push(textura);
+
+        // Textura temporária de 1x1 transparente enquanto a imagem carrega
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, textura);
+        gl.texImage2D(
+            gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, 
+            gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0])
+        );
+
+        // Carregamento assíncrono do arquivo PNG
+        const img = new Image();
+        img.onload = function () {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, textura);
+
+        
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+            // Associa a imagem carregada à textura WebGL
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        };
+
+        img.src = caminho;
+    });
 }
