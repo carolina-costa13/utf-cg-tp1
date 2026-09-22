@@ -386,6 +386,8 @@ export function checaColisaoSapo() {
 }
 
 // Animações dos outros animais
+
+
 export function animacaoMosca(quantoTempo) {
   tempoAnimacaoMosca += quantoTempo;
   if (tempoAnimacaoMosca >= 0.08) {
@@ -824,7 +826,7 @@ export const torres = [
   inteira leva 10 s.*/
 const MOSCA_VELOCIDADE = 0.2;       
 const MOSCA_ALCANCE = 0.4;          // distância a partir da qual ela para e atira
-const MOSCA_DANO = 0.5;               // dano de cada projétil
+const MOSCA_DANO = 1;               // dano de cada projétil
 
 // Animação fly_shoot (da mosca atirando): 7 quadros de 83 ms
 const TIRO_TOTAL_FRAMES = 7;

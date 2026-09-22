@@ -373,7 +373,7 @@ export function desenhaMosca(gl) {
 
   // Tamanho do renderizador da mosca
   const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
-  gl.uniform2f(tamanhoLoc, 0.2, 0.2)
+  gl.uniform2f(tamanhoLoc, 0.15, 0.15)
 
 
   const larguraSprite = 1 / totalFrames //são vários quadros, lado a lado, por isso a divisão.
@@ -427,7 +427,7 @@ export function desenhaProjeteis(gl) {
   // u_size.x = 16 × 0.00625 = 0.1
   // u_size.y =  8 × 0.00625 = 0.05
 
-  gl.uniform2f(tamanhoLoc, 0.1, 0.05)
+  gl.uniform2f(tamanhoLoc, 0.045, 0.02)
 
 
   // O PNG do projétil tem 32 × 8 px, com 2 quadros de 16 × 8 lado a lado.
