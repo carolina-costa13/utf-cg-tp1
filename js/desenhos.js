@@ -57,13 +57,12 @@ import {
 
 import { programa } from './glSetup.js';
 
-// Configuração das posições e tamanhos dos botões da loja na tela
 export const BOTOES_LOJA = [
-  { tipo: 'sapos',    x: -0.525, y: -0.82, largura: 0.22, altura: 0.22 },
-  { tipo: 'lagartos', x: -0.175, y: -0.82, largura: 0.22, altura: 0.22 },
-  { tipo: 'sprays',   x:  0.175, y: -0.82, largura: 0.22, altura: 0.22 },
-  { tipo: 'veneno',   x:  0.525, y: -0.82, largura: 0.22, altura: 0.22 }
-];
+  { tipo: 'sapos',    x: -0.525, y: -0.85, largura: 0.14, altura: 0.14 },
+  { tipo: 'lagartos', x: -0.175, y: -0.85, largura: 0.14, altura: 0.14 },
+  { tipo: 'sprays',   x:  0.175, y: -0.85, largura: 0.14, altura: 0.14 },
+  { tipo: 'venenos',   x:  0.525, y: -0.85, largura: 0.14, altura: 0.14 }
+]
 
 // Lê o estado do bolo e pede pra GPU desenhar, ou não ele (por enquanto).
 export function desenhaBolo(gl) {
@@ -166,6 +165,14 @@ export function desenhaFormiga(gl) {
   for (const formiga of formigasAtivas) {
     if (!formiga.viva) continue;
 
+    let linha = 1; // Padrão (andando para a esquerda)
+    if (formiga.indoParaBolo === 'cima') {
+      linha = 3; // Linha da sprite subindo
+    } else if (formiga.indoParaBolo === 'baixo') {
+      linha = 0; // Linha da sprite descendo
+    }
+
+    gl.uniform2f(texOffsetLoc, colunaAtual * larguraSprite, linha * alturaSprite);
     gl.uniform2f(posicaoLoc, formiga.posX, formiga.posY);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
@@ -607,6 +614,16 @@ export function desenhaFormigaVermelha(gl) {
   for (const formiga of formigasVermelhasAtivas) {
     if (!formiga.viva) continue;
 
+    let linha = 1; // Padrão (andando para a esquerda)
+    if (formiga.indoParaBolo === 'cima') {
+      linha = 3; // Linha da sprite subindo
+    } else if (formiga.indoParaBolo === 'baixo') {
+      linha = 0; // Linha da sprite descendo
+    }
+
+    console.log("Formiga com indoParaBolo atual:", formiga.indoParaBolo);
+    
+    gl.uniform2f(texOffsetLoc, colunaAtual * larguraSprite, linha * alturaSprite);
     gl.uniform2f(posicaoLoc, formiga.posX, formiga.posY);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
@@ -829,9 +846,10 @@ export function desenhaBotoes(gl, texturaBotoes, listaBotoes, defesaSelecionada)
   const IMG_W = 192.0;
   const IMG_H = 144.0;
 
-  // Tamanho nominal das células da grelha
-  const CELL_W = 24.0;  // 192 / 8
-  const CELL_H = 20.0;  // Ajustado para 20px exatos para não cortar a borda superior
+  // A grade real do spritesheet é 8 colunas x 6 linhas (24x24 px por célula).
+  const CELL_W = 24.0;
+  const CELL_H = 24.0; 
+  const NUM_ROWS = 6.0;
 
   // Recorte UV por célula
   const texSizeU = CELL_W / IMG_W;
@@ -845,15 +863,15 @@ export function desenhaBotoes(gl, texturaBotoes, listaBotoes, defesaSelecionada)
   for (const btn of listaBotoes) {
     const estaSelecionado = (defesaSelecionada === btn.tipo);
 
-    // 🔴 BOTÃO VERMELHO: Coluna 6
-    // Com UNPACK_FLIP_Y_WEBGL ativado:
-    // Linha 2 = Normal | Linha 3 = Pressionado
     const coluna = 6;
     const linha = estaSelecionado ? 3 : 2;
 
+
+    const linhaInvertida = (NUM_ROWS - 1) - linha;
+
     // Converte para UV
     const texOffsetU = (coluna * CELL_W) / IMG_W;
-    const texOffsetV = (linha * (IMG_H / 7.0)) / IMG_H;
+    const texOffsetV = (linhaInvertida * CELL_H + 1.5) / IMG_H;
 
     gl.uniform2f(texOffsetLoc, texOffsetU, texOffsetV);
     gl.uniform2f(texSizeLoc, texSizeU, texSizeV);
@@ -864,23 +882,26 @@ export function desenhaBotoes(gl, texturaBotoes, listaBotoes, defesaSelecionada)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
-  // 2. DESENHAR OS ÍCONES (SAPO, LAGARTO, SPRAY E VENENO)
+  // 2. DESENHAR OS ÍCONES DAS DEFESAS SOBRE OS BOTÕES
+  const OFFSET_VERTICAL_ICONE = -0.02; // calibre esse valor visualmente
+
   for (const btn of listaBotoes) {
     const estaSelecionado = (defesaSelecionada === btn.tipo);
 
     const lIcone = btn.largura * 0.40;
     const aIcone = btn.altura * 0.40;
-    
-    // Posição vertical centralizada na caixa
-    const yAjustado = estaSelecionado ? btn.y + 0.015 : btn.y + 0.03;
+
+    // Centro do botão + offset de "afundar" quando selecionado + correção vertical
+    const yBase = estaSelecionado ? btn.y - 0.01 : btn.y;
+    const yAjustado = yBase + OFFSET_VERTICAL_ICONE;
 
     if (btn.tipo === 'sapos' && typeof texturaSapo !== 'undefined' && texturaSapo) {
-      desenhaSapo(gl, btn.x, yAjustado, lIcone, aIcone);
+      desenhaSapo(gl, btn.x, yAjustado, lIcone, aIcone, true); // true = ignora frameLingua
     } else if (btn.tipo === 'lagartos' && typeof texturaLagarto !== 'undefined' && texturaLagarto) {
       desenhaLagarto(gl, btn.x, yAjustado, lIcone, aIcone);
     } else if (btn.tipo === 'sprays' && typeof texturaSpray !== 'undefined' && texturaSpray) {
       desenhaSpray(gl, btn.x, yAjustado, lIcone, aIcone);
-    } else if (btn.tipo === 'veneno' && typeof texturaVeneno !== 'undefined' && texturaVeneno) {
+    } else if (btn.tipo === 'venenos' && typeof texturaVeneno !== 'undefined' && texturaVeneno) {
       desenhaVeneno(gl, btn.x, yAjustado, lIcone, aIcone);
     }
   }

@@ -14,11 +14,14 @@ const RAIO_ALCANCE_SPRAY = 0.35;
 let tempoUltimoDisparoSpray = 0;
 const COOLDOWN_SPRAY = 0.5; // Intervalo de 0.5 segundos entre disparos
 const DANO_SPRAY_POR_SEGUNDO = 100;
+const OFFSET_BICO_X = 0.2;   // mexa se o bico não estiver centralizado horizontalmente
+const OFFSET_BICO_Y = 0.2; 
 
 export const CUSTO_DEFESAS = {
   sapos: 100,
   lagartos: 150,
-  sprays: 200
+  sprays: 200,
+  venenos: 50
 }
 
 export let defesaSelecionada = null;
@@ -116,11 +119,12 @@ export let formigasAtivas = [];
 let tempoGeracaoFormiga = 0;
 
 export function geraHordaFormiga() {
-  // Aumenta 1 formiga extra a cada 30 segundos de jogo
-  const bonusDificuldade = Math.floor(tempoJogoTotal / 30);
+  // A cada 45 segundos de jogo, a horda ganha +1 no tamanho máximo/mínimo de forma bem lenta
+  const bonusDificuldade = Math.floor(tempoJogoTotal / 45);
   
-  const minFormigas = 2 + bonusDificuldade;
-  const maxFormigas = 4 + bonusDificuldade;
+  // Começa com hordas de 1 a 2 formigas no bem início
+  const minFormigas = Math.max(1, 1 + Math.floor(bonusDificuldade / 2));
+  const maxFormigas = 2 + bonusDificuldade;
   
   const tamanhoHorda = Math.floor(Math.random() * (maxFormigas - minFormigas + 1)) + minFormigas;
   const ultimaColuna = COLUNAS - 1;
@@ -130,8 +134,8 @@ export function geraHordaFormiga() {
     const posWebGL = matrizParaWebGL(linhaSorteada, ultimaColuna);
     const offsetInicioX = Math.random() * 0.1;
 
-    // A velocidade base aumenta levemente com o tempo
-    const bonusVelocidade = Math.min(0.1, tempoJogoTotal * 0.0005);
+    // A velocidade começa bem branda e aumenta muito sutilmente
+    const bonusVelocidade = Math.min(0.08, tempoJogoTotal * 0.0003);
 
     const novaFormiga = {
       id: Date.now() + Math.random(),
@@ -152,7 +156,6 @@ export function geraHordaFormiga() {
 export function atualizaFormigas(quantoTempo) {
   tempoGeracaoFormiga += quantoTempo;
 
-  // Calcula o intervalo atual: reduz a cada segundo de jogo até o limite mínimo
   const reduzIntervalo = tempoJogoTotal * 0.02; 
   const intervaloAtual = Math.max(INTERVALO_MIN_MARROM, INTERVALO_BASE_MARROM - reduzIntervalo);
 
@@ -169,10 +172,28 @@ export function atualizaFormigas(quantoTempo) {
       continue;
     }
 
-    formiga.posX -= formiga.velocidade * quantoTempo;
+    if (!formiga.indoParaBolo) {
+      formiga.posX -= formiga.velocidade * quantoTempo;
 
-    if (formiga.posX < -0.8) {
-      formiga.viva = false;
+      if (formiga.posX <= posXBolo) {
+        // Define se vai para cima ou para baixo com base na posição Y do bolo
+        const dy = posYBolo - formiga.posY;
+        formiga.indoParaBolo = dy > 0 ? 'cima' : 'baixo';
+      }
+    } else {
+      // Movimento em direção ao bolo
+      const dx = posXBolo - formiga.posX;
+      const dy = posYBolo - formiga.posY;
+      const distancia = Math.hypot(dx, dy);
+
+      if (distancia < 0.05) {
+        causarDanoBolo(1);
+        formiga.viva = false;
+      } else {
+        const passo = Math.min(formiga.velocidade * quantoTempo, distancia);
+        formiga.posX += (dx / distancia) * passo;
+        formiga.posY += (dy / distancia) * passo;
+      }
     }
   }
 }
@@ -184,10 +205,13 @@ export let formigasVermelhasAtivas = [];
 let tempoGeracaoVermelha = 0;            
 
 export function geraHordaFormigaVermelha() {
-  const bonusDificuldade = Math.floor(tempoJogoTotal / 45); // Aumenta a cada 45s
+ // Só começa a escalar de verdade depois de um tempo de jogo (ex: após 30 segundos)
+  if (tempoJogoTotal < 30) return; 
+
+  const bonusDificuldade = Math.floor((tempoJogoTotal - 30) / 60); // Evolui a cada 1 min
   
-  const minFormigas = 1 + bonusDificuldade;
-  const maxFormigas = 2 + bonusDificuldade;
+  const minFormigas = 1;
+  const maxFormigas = 1 + bonusDificuldade;
 
   const tamanhoHorda = Math.floor(Math.random() * (maxFormigas - minFormigas + 1)) + minFormigas;
   const ultimaColuna = COLUNAS - 1;
@@ -197,7 +221,7 @@ export function geraHordaFormigaVermelha() {
     const posWebGL = matrizParaWebGL(linhaSorteada, ultimaColuna);
     const offsetInicioX = Math.random() * 0.1;
 
-    const bonusVelocidade = Math.min(0.12, tempoJogoTotal * 0.0006);
+    const bonusVelocidade = Math.min(0.1, (tempoJogoTotal - 30) * 0.0005);
 
     const novaFormiga = {
       id: Date.now() + Math.random(),
@@ -234,10 +258,26 @@ export function atualizaFormigasVermelhas(quantoTempo) {
       continue;
     }
 
-    formiga.posX -= formiga.velocidade * quantoTempo;
+    if (!formiga.indoParaBolo) {
+      formiga.posX -= formiga.velocidade * quantoTempo;
 
-    if (formiga.posX < -0.8) {
-      formiga.viva = false;
+      if (formiga.posX <= posXBolo) {
+        formiga.indoParaBolo = true;
+      }
+    } else {
+      const dx = posXBolo - formiga.posX;
+      const dy = posYBolo - formiga.posY;
+      const distancia = Math.hypot(dx, dy);
+
+      if (distancia < 0.05) {
+        causarDanoBolo(2); // Formiga vermelha pode causar mais dano se quiser (ex: 2)
+        formiga.viva = false;
+        console.log("Formiga Vermelha chegou ao bolo e causou dano!");
+      } else {
+        const passo = Math.min(formiga.velocidade * quantoTempo, distancia);
+        formiga.posX += (dx / distancia) * passo;
+        formiga.posY += (dy / distancia) * passo;
+      }
     }
   }
 }
@@ -473,6 +513,19 @@ export function checaDanoSapo() {
       console.log(`Besouro atingiu o Sapo! Vida restante: ${vidaSapo}`);
     }
   }
+
+  // 4. Verificação com a Mosca
+  if (moscaViva) {
+    const distMoscaX = Math.abs(posXMosca - posXSapo);
+    const distMoscaY = Math.abs(posYMosca - posYSapo);
+
+    if (distMoscaX < raioSapo && distMoscaY < raioSapo) {
+      causarDanoSapo(1);
+      // Se quiser que a mosca suma ao encostar ou continue viva, você decide aqui. 
+      // Por padrão, vamos apenas causar o dano:
+      console.log(`A mosca atingiu o Sapo! Vida restante: ${vidaSapo}`);
+    }
+  }
 }
 
 export function causarDanoSapo(dano) {
@@ -490,10 +543,13 @@ export let besourosAtivos = [];
 let tempoGeracaoBesouros = 0;            
 
 export function geraHordaBesouro() {
-  const bonusDificuldade = Math.floor(tempoJogoTotal / 45); 
+  if (tempoJogoTotal < 45) return; 
+
+  // A dificuldade escala de forma bem lenta a cada 60 segundos após o surgimento deles
+  const bonusDificuldade = Math.floor((tempoJogoTotal - 45) / 60); 
   
-  const minBesouros = 1 + bonusDificuldade;
-  const maxBesouros = 2 + bonusDificuldade;
+  const minBesouros = 1;
+  const maxBesouros = 1 + bonusDificuldade;
 
   const tamanhoHorda = Math.floor(Math.random() * (maxBesouros - minBesouros + 1)) + minBesouros;
   const ultimaColuna = COLUNAS - 1;
@@ -503,7 +559,7 @@ export function geraHordaBesouro() {
     const posWebGL = matrizParaWebGL(linhaSorteada, ultimaColuna);
     const offsetInicioX = Math.random() * 0.1;
 
-    const bonusVelocidade = Math.min(0.12, tempoJogoTotal * 0.0006);
+    const bonusVelocidade = Math.min(0.1, (tempoJogoTotal - 30) * 0.0005);
 
     const novoBesouro = {
       id: Date.now() + Math.random(),
@@ -595,7 +651,7 @@ export function tentarAtivarSpray(quantoTempo) {
 
   // Procura se existe pelo menos uma torre de spray ativa no tabuleiro
   const spraysAtivos = defesasColocadas.filter(d => d.tipo === 'sprays' && d.viva);
-  if (spraysAtivos.length === 0) return; // 🟢 Se não houver spray no tabuleiro, não faz nada!
+  if (spraysAtivos.length === 0) return; 
 
   tempoUltimoDisparoSpray += quantoTempo;
 
@@ -612,14 +668,14 @@ export function tentarAtivarSpray(quantoTempo) {
 }
 
 export function disparaSpray(posXBase, posYBase) {
-  // Cria uma nova partícula de fumaça vinculada àquela torre de spray específica
   fumacasAtivas.push({
-    posX: posXBase,
-    posY: posYBase + ALTURA_BICO_SUPERIOR, // Origem exata na ponta superior do spray
+    posX: posXBase + OFFSET_BICO_X,
+    posY: posYBase + OFFSET_BICO_Y,
     vida: 1.0,
     tamanho: 0.20
   });
 }
+
 export function aplicaDanoAreaSpray(posXFumaca, posYFumaca, quantoTempo) {
   // 1. Formigas Comuns
   for (let i = formigasAtivas.length - 1; i >= 0; i--) {
@@ -692,9 +748,10 @@ export function atualizaFumaca(quantoTempo) {
   for (let i = fumacasAtivas.length - 1; i >= 0; i--) {
     const f = fumacasAtivas[i];
 
-    // Mantém a fumaça exatamente centralizada na ponta superior do spray
-    f.posX = posXSpray + 0.15; // Removido o + 0.15 que tirava do centro
-    f.posY = posYSpray + ALTURA_BICO_SUPERIOR;
+    // A posição da fumaça já foi definida corretamente em disparaSpray(),
+    // vinculada à torre específica que a disparou (f.posX / f.posY).
+    // Como as torres de spray não se movem, não é necessário recalcular
+    // a posição a cada frame aqui.
 
     // Aplica dano na área da fumaça
     if (typeof aplicaDanoAreaSpray === 'function') {
