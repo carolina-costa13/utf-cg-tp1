@@ -97,8 +97,13 @@ function desenhaCena(gl) {
 
 
 function loopPrincipal(agora) {
-  const quantoPassou = (agora - logoAntes) / 1000;
+  let quantoPassou = (agora - logoAntes) / 1000;
   logoAntes = agora;
+
+  // Evita saltos de tempo gigantes quando a aba fica em segundo plano
+  // e volta (o navegador pausa o requestAnimationFrame nesse período).
+  const MAX_DELTA = 0.1; // no máximo ~100ms por frame
+  quantoPassou = Math.min(quantoPassou, MAX_DELTA);
 
   atualizaLogica(quantoPassou);
   atualizaMoedas(quantoPassou);

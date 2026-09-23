@@ -13,7 +13,6 @@ import {
   formigasVermelhasAtivas,
   besourosAtivos,
   fumacasAtivas,
-  usosRestantesSpray,
   posXSpray,
   posYSpray,
   posXMosca,
@@ -212,14 +211,14 @@ export function desenhaVeneno(gl,posX = -0.35, posY = 0.0, largura = 0.10, altur
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4)
 }
 
-export function desenhaSpray(gl, posX = posXSpray, posY = posYSpray, largura = 0.08,altura = 0.19) {
-    if (usosRestantesSpray <= 0) return;
+export function desenhaSpray(gl, posX = posXSpray, posY = posYSpray, largura = 0.08, altura = 0.19, usosRestantes = 1) {
+    if (usosRestantes <= 0) return;
 
     if (typeof programa === 'undefined' || !programa) return;
 
     gl.useProgram(programa);
 
-    // Posição dinâmica do spray importada do animations.js
+    // Posição dinâmica do spray
     const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
     gl.uniform2f(posicaoLoc, posX, posY); 
 
@@ -245,7 +244,6 @@ export function desenhaSpray(gl, posX = posXSpray, posY = posYSpray, largura = 0
     // Desenha o quadrado
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
-
 
 export function desenhaLagarto(gl,posX = -0.35, posY = 0.65, largura = 0.16, altura = 0.16) {
   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
@@ -292,52 +290,58 @@ export function desenhaLagarto(gl,posX = -0.35, posY = 0.65, largura = 0.16, alt
 
 
 export function desenhaBesouro(gl) {
-  // 1. Não tenta desenhar se não houver besouros ativos
   if (!besourosAtivos || besourosAtivos.length === 0) {
     return;
   }
 
-  // 2. Garante que o programa shader está ativo
   if (typeof programa !== 'undefined') {
     gl.useProgram(programa);
   }
 
-  // Localizações dos uniformes do WebGL
   const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
   const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
   const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
   const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
   const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
 
-  // Dimensões do recorte da spritesheet (12 colunas x 8 linhas)
   const larguraSprite = 1 / 12;
   const alturaSprite = 1 / 8;
 
-  // CONFIGURAÇÃO DO BESOURO:
   const colunaInicial = 6; // Besouro verde
-  const linhaDesejada = 6; // 2 = Andando para a esquerda (direção correta)
 
-  // Vincula a textura do besouro
+  // IMPORTANTE: por causa do UNPACK_FLIP_Y_WEBGL, a fórmula abaixo usa
+  // "7 - linhaReal" para acertar a linha visível no arquivo.
+  // Linha real 1 (andando) -> 7 - 1 = 6
+  // Linha real 0 (vista de cima, pose A) -> 7 - 0 = 7
+  // Linha real 3 (vista de cima, pose B) -> 7 - 3 = 4
+  const LINHA_ESQUERDA = 6;
+  const LINHA_CIMA_A = 7;
+  const LINHA_CIMA_B = 4;
+
   if (typeof texturaBesouro !== 'undefined' && texturaBesouro) {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texturaBesouro);
     gl.uniform1i(texturaLoc, 0);
   }
 
-  // Define o tamanho visual do besouro
   gl.uniform2f(tamanhoLoc, 0.15, 0.16);
   gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite);
 
-  // Calcula a coordenada U/V da textura no quadro atual de animação
   const posUVX = (colunaInicial + frameBesouro) * larguraSprite;
-  const posUVY = 1.0 - ((linhaDesejada + 1) * alturaSprite);
-  gl.uniform2f(texOffsetLoc, posUVX, posUVY);
 
-  // 3. Renderiza cada besouro ativo em sua coordenada real
   for (const besouro of besourosAtivos) {
     if (!besouro.vivo) continue;
 
-    // Atualiza a posição X e Y individual no shader
+    let linhaDesejada = LINHA_ESQUERDA;
+    if (besouro.indoParaBolo === 'cima') {
+      linhaDesejada = LINHA_CIMA_B;
+    } else if (besouro.indoParaBolo === 'baixo') {
+      linhaDesejada = LINHA_CIMA_A;
+    }
+
+    const posUVY = 1.0 - ((linhaDesejada + 1) * alturaSprite);
+    gl.uniform2f(texOffsetLoc, posUVX, posUVY);
+
     gl.uniform2f(posicaoLoc, besouro.posX, besouro.posY);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
@@ -614,11 +618,15 @@ export function desenhaFormigaVermelha(gl) {
   for (const formiga of formigasVermelhasAtivas) {
     if (!formiga.viva) continue;
 
+
+     for (const formiga of formigasVermelhasAtivas) {
+    if (!formiga.viva) continue;
+
     let linha = 1; // Padrão (andando para a esquerda)
     if (formiga.indoParaBolo === 'cima') {
-      linha = 3; // Linha da sprite subindo
+      linha = 3;
     } else if (formiga.indoParaBolo === 'baixo') {
-      linha = 0; // Linha da sprite descendo
+      linha = 0;
     }
 
     console.log("Formiga com indoParaBolo atual:", formiga.indoParaBolo);
@@ -627,6 +635,7 @@ export function desenhaFormigaVermelha(gl) {
     gl.uniform2f(posicaoLoc, formiga.posX, formiga.posY);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
+}
 }
 
 export function desenhaBarraVida(gl, vidaAtual, vidaMaxima, tipoCor = 0) {
@@ -894,13 +903,13 @@ export function desenhaBotoes(gl, texturaBotoes, listaBotoes, defesaSelecionada)
     // Centro do botão + offset de "afundar" quando selecionado + correção vertical
     const yBase = estaSelecionado ? btn.y - 0.01 : btn.y;
     const yAjustado = yBase + OFFSET_VERTICAL_ICONE;
-
+ 
     if (btn.tipo === 'sapos' && typeof texturaSapo !== 'undefined' && texturaSapo) {
       desenhaSapo(gl, btn.x, yAjustado, lIcone, aIcone, true); // true = ignora frameLingua
     } else if (btn.tipo === 'lagartos' && typeof texturaLagarto !== 'undefined' && texturaLagarto) {
       desenhaLagarto(gl, btn.x, yAjustado, lIcone, aIcone);
     } else if (btn.tipo === 'sprays' && typeof texturaSpray !== 'undefined' && texturaSpray) {
-      desenhaSpray(gl, btn.x, yAjustado, lIcone, aIcone);
+      desenhaSpray(gl, btn.x, yAjustado, lIcone, aIcone); // usa default usosRestantes = 1, ícone sempre visível
     } else if (btn.tipo === 'venenos' && typeof texturaVeneno !== 'undefined' && texturaVeneno) {
       desenhaVeneno(gl, btn.x, yAjustado, lIcone, aIcone);
     }

@@ -27,7 +27,6 @@ export const CUSTO_DEFESAS = {
 export let defesaSelecionada = null;
 export let defesasColocadas = [];
 
-export let usosRestantesSpray = 10;
 export let fumacasAtivas = [];
 export let posXSpray = -0.35;
 export let posYSpray = 0.25;
@@ -65,7 +64,7 @@ export let pontuacaoDinheiro = 0;
 export const moedasAtivas = [];
 
 let tempoParaProximaMoeda = 0;
-const INTERVALO_MOEDA = 15.0; 
+const INTERVALO_MOEDA = 5.0; 
 
 
 // TABULEIRO DA MATRIZ (11 linhas x 7 colunas)
@@ -262,7 +261,8 @@ export function atualizaFormigasVermelhas(quantoTempo) {
       formiga.posX -= formiga.velocidade * quantoTempo;
 
       if (formiga.posX <= posXBolo) {
-        formiga.indoParaBolo = true;
+        const dy = posYBolo - formiga.posY;
+        formiga.indoParaBolo = dy > 0 ? 'cima' : 'baixo';
       }
     } else {
       const dx = posXBolo - formiga.posX;
@@ -270,7 +270,7 @@ export function atualizaFormigasVermelhas(quantoTempo) {
       const distancia = Math.hypot(dx, dy);
 
       if (distancia < 0.05) {
-        causarDanoBolo(2); // Formiga vermelha pode causar mais dano se quiser (ex: 2)
+        causarDanoBolo(2);
         formiga.viva = false;
         console.log("Formiga Vermelha chegou ao bolo e causou dano!");
       } else {
@@ -319,9 +319,6 @@ export function webGLParaMatriz(x, y) {
   return { linha, coluna };
 }
 
-// Coordenadas fixas do corpo do Sapo no WebGL
-const posXSapo = -0.5;
-const posYSapo = -0.4;
 const raioSapo = 0.12; // Raio de colisão do corpo do Sapo
 
 
@@ -334,68 +331,55 @@ export function checaColisaoSapo() {
   const sapoAtacando = (frameLingua === 2 || frameLingua === 1);
   if (!sapoAtacando) return;
 
-  const alcancePontaLinguaX = -0.5 + 0.35; 
-  const posYSapo = -0.4;
+  const alcanceLinguaX = 0.4;
 
-  // 1. Colisão com Formigas
-  for (const formiga of formigasAtivas) {
-    if (!formiga.viva) continue;
+  // Pega todos os sapos vivos realmente colocados no tabuleiro
+  const saposColocados = defesasColocadas.filter(d => d.tipo === 'sapos' && d.viva);
+  if (saposColocados.length === 0) return;
 
-    const distX = Math.abs(alcancePontaLinguaX - formiga.posX);
-    const distY = Math.abs(posYSapo - formiga.posY);
+  for (const sapo of saposColocados) {
+    const posXSapo = sapo.posX;
+    const posYSapo = sapo.posY;
 
-    if (distX < 0.1 && distY < 0.15) {
-      formiga.vida -= 1;
-      console.log(`Sapo acertou Formiga! Vida restante: ${formiga.vida}`);
-
-      if (formiga.vida <= 0) {
-        formiga.viva = false;
-        console.log("Formiga morreu!");
+    // 1. Formigas Comuns
+    for (const formiga of formigasAtivas) {
+      if (!formiga.viva) continue;
+      const distX = formiga.posX - posXSapo;
+      const distY = Math.abs(formiga.posY - posYSapo);
+      if (distX >= 0 && distX <= alcanceLinguaX && distY < 0.2) {
+        formiga.vida -= 1;
+        if (formiga.vida <= 0) formiga.viva = false;
       }
     }
-  }
 
-  // 2. Colisão com Formigas Vermelhas
-  for (const formiga of formigasVermelhasAtivas) {
-    if (!formiga.viva) continue;
-
-    const distX = Math.abs(alcancePontaLinguaX - formiga.posX);
-    const distY = Math.abs(posYSapo - formiga.posY);
-
-    if (distX < 0.1 && distY < 0.15) {
-      formiga.vida -= 1;
-      console.log(`Sapo acertou Formiga Vermelha! Vida restante: ${formiga.vida}`);
-
-      if (formiga.vida <= 0) {
-        formiga.viva = false;
-        console.log("Formiga Vermelha morreu!");
+    // 2. Formigas Vermelhas
+    for (const formiga of formigasVermelhasAtivas) {
+      if (!formiga.viva) continue;
+      const distX = formiga.posX - posXSapo;
+      const distY = Math.abs(formiga.posY - posYSapo);
+      if (distX >= 0 && distX <= alcanceLinguaX && distY < 0.2) {
+        formiga.vida -= 1;
+        if (formiga.vida <= 0) formiga.viva = false;
       }
     }
-  }
 
-  // 3. Mosca
-  if (moscaViva) {
-    const distMoscaX = Math.abs(alcancePontaLinguaX - posXMosca);
-    const distMoscaY = Math.abs(posYSapo - posYMosca);
-    if (distMoscaX < 0.12 && distMoscaY < 0.15) {
-      causarDanoMosca(1);
+    // 3. Mosca
+    if (moscaViva) {
+      const distMoscaX = posXMosca - posXSapo;
+      const distMoscaY = Math.abs(posYMosca - posYSapo);
+      if (distMoscaX >= 0 && distMoscaX <= alcanceLinguaX && distMoscaY < 0.25) {
+        causarDanoMosca(1);
+      }
     }
-  }
 
-  // 4. Besouro
- for (const besouro of besourosAtivos) {
-    if (!besouro.vivo) continue;
-
-    const distX = Math.abs(alcancePontaLinguaX - besouro.posX);
-    const distY = Math.abs(posYSapo - besouro.posY);
-
-    if (distX < 0.1 && distY < 0.15) {
-      besouro.vida -= 1;
-      console.log(`Sapo acertou besouro! Vida restante: ${besouro.vida}`);
-
-      if (besouro.vida <= 0) {
-        besouro.vivo = false;
-        console.log("Besouro morreu!");
+    // 4. Besouro
+    for (const besouro of besourosAtivos) {
+      if (!besouro.vivo) continue;
+      const distX = besouro.posX - posXSapo;
+      const distY = Math.abs(besouro.posY - posYSapo);
+      if (distX >= 0 && distX <= alcanceLinguaX && distY < 0.2) {
+        besouro.vida -= 1;
+        if (besouro.vida <= 0) besouro.vivo = false;
       }
     }
   }
@@ -467,67 +451,67 @@ export let sapoVivo = true;
 // COLISÃO DE DANO NO CORPO DO SAPO
 // ==========================================
 export function checaDanoSapo() {
-  if (!sapoVivo) return;
-
   const sapoAtacando = (frameLingua === 1 || frameLingua === 2);
   if (sapoAtacando) return;
 
-  // 1. Verificação com Formigas Comuns
-  for (const formiga of formigasAtivas) {
-    if (!formiga.viva) continue;
+  const saposColocados = defesasColocadas.filter(d => d.tipo === 'sapos' && d.viva);
+  if (saposColocados.length === 0) return;
 
-    const distX = Math.abs(formiga.posX - posXSapo);
-    const distY = Math.abs(formiga.posY - posYSapo);
+  for (const sapo of saposColocados) {
+    const posXSapo = sapo.posX;
+    const posYSapo = sapo.posY;
 
-    if (distX < raioSapo && distY < raioSapo) {
-      causarDanoSapo(1);
-      formiga.viva = false;
-      console.log(`Formiga atingiu o Sapo! Vida restante: ${vidaSapo}`);
+    // 1. Formigas Comuns
+    for (const formiga of formigasAtivas) {
+      if (!formiga.viva) continue;
+      const distX = Math.abs(formiga.posX - posXSapo);
+      const distY = Math.abs(formiga.posY - posYSapo);
+      if (distX < raioSapo && distY < raioSapo) {
+        sapo.vida -= 1;
+        formiga.viva = false;
+        console.log(`Formiga atingiu o Sapo! Vida restante: ${sapo.vida}`);
+        if (sapo.vida <= 0) sapo.viva = false;
+      }
     }
-  }
 
-  // 2. Verificação com Formigas Vermelhas
-  for (const formiga of formigasVermelhasAtivas) {
-    if (!formiga.viva) continue;
-
-    const distX = Math.abs(formiga.posX - posXSapo);
-    const distY = Math.abs(formiga.posY - posYSapo);
-
-    if (distX < raioSapo && distY < raioSapo) {
-      causarDanoSapo(1);
-      formiga.viva = false;
-      console.log(`Formiga Vermelha atingiu o Sapo! Vida restante: ${vidaSapo}`);
+    // 2. Formigas Vermelhas
+    for (const formiga of formigasVermelhasAtivas) {
+      if (!formiga.viva) continue;
+      const distX = Math.abs(formiga.posX - posXSapo);
+      const distY = Math.abs(formiga.posY - posYSapo);
+      if (distX < raioSapo && distY < raioSapo) {
+        sapo.vida -= 1;
+        formiga.viva = false;
+        console.log(`Formiga Vermelha atingiu o Sapo! Vida restante: ${sapo.vida}`);
+        if (sapo.vida <= 0) sapo.viva = false;
+      }
     }
-  }
 
-  // 3. Verificação com Besouros 
-  for (const besouro of besourosAtivos) {
-    if (!besouro.vivo) continue;
-
-    const distX = Math.abs(besouro.posX - posXSapo);
-    const distY = Math.abs(besouro.posY - posYSapo);
-
-    if (distX < raioSapo && distY < raioSapo) {
-      causarDanoSapo(1);
-      besouro.vivo = false;
-      console.log(`Besouro atingiu o Sapo! Vida restante: ${vidaSapo}`);
+    // 3. Besouros
+    for (const besouro of besourosAtivos) {
+      if (!besouro.vivo) continue;
+      const distX = Math.abs(besouro.posX - posXSapo);
+      const distY = Math.abs(besouro.posY - posYSapo);
+      if (distX < raioSapo && distY < raioSapo) {
+        sapo.vida -= 1;
+        besouro.vivo = false;
+        console.log(`Besouro atingiu o Sapo! Vida restante: ${sapo.vida}`);
+        if (sapo.vida <= 0) sapo.viva = false;
+      }
     }
-  }
 
-  // 4. Verificação com a Mosca
-  if (moscaViva) {
-    const distMoscaX = Math.abs(posXMosca - posXSapo);
-    const distMoscaY = Math.abs(posYMosca - posYSapo);
-
-    if (distMoscaX < raioSapo && distMoscaY < raioSapo) {
-      causarDanoSapo(1);
-      // Se quiser que a mosca suma ao encostar ou continue viva, você decide aqui. 
-      // Por padrão, vamos apenas causar o dano:
-      console.log(`A mosca atingiu o Sapo! Vida restante: ${vidaSapo}`);
+    // 4. Mosca
+    if (moscaViva) {
+      const distMoscaX = Math.abs(posXMosca - posXSapo);
+      const distMoscaY = Math.abs(posYMosca - posYSapo);
+      if (distMoscaX < raioSapo && distMoscaY < raioSapo) {
+        sapo.vida -= 1;
+        console.log(`A mosca atingiu o Sapo! Vida restante: ${sapo.vida}`);
+        if (sapo.vida <= 0) sapo.viva = false;
+      }
     }
   }
 }
-
 export function causarDanoSapo(dano) {
   if (!sapoVivo) return;
 
@@ -584,7 +568,7 @@ export function atualizaBesouros(quantoTempo) {
   const intervaloAtual = Math.max(INTERVALO_MIN_BESOUROS, INTERVALO_BASE_BESOUROS - reduzIntervalo);
 
   if (tempoGeracaoBesouros >= intervaloAtual) {
-    geraHordaBesouro(); 
+    geraHordaBesouro();
     tempoGeracaoBesouros = 0;
   }
 
@@ -596,13 +580,31 @@ export function atualizaBesouros(quantoTempo) {
       continue;
     }
 
-    besouro.posX -= besouro.velocidade * quantoTempo;
+    if (!besouro.indoParaBolo) {
+      besouro.posX -= besouro.velocidade * quantoTempo;
 
-    if (besouro.posX < -0.8) {
-      besouro.vivo = false; 
+      if (besouro.posX <= posXBolo) {
+        const dy = posYBolo - besouro.posY;
+        besouro.indoParaBolo = dy > 0 ? 'cima' : 'baixo';
+      }
+    } else {
+      const dx = posXBolo - besouro.posX;
+      const dy = posYBolo - besouro.posY;
+      const distancia = Math.hypot(dx, dy);
+
+      if (distancia < 0.05) {
+        causarDanoBolo(2);
+        besouro.vivo = false;
+        console.log("Besouro chegou ao bolo e causou dano!");
+      } else {
+        const passo = Math.min(besouro.velocidade * quantoTempo, distancia);
+        besouro.posX += (dx / distancia) * passo;
+        besouro.posY += (dy / distancia) * passo;
+      }
     }
   }
 }
+
 
 function estaVivo(inseto) {
   if (typeof inseto.viva !== 'undefined') return inseto.viva;
@@ -647,20 +649,18 @@ export function temInsetoNoAlcance(posXBase, posYBase) {
 }
 
 export function tentarAtivarSpray(quantoTempo) {
-  if (usosRestantesSpray <= 0) return;
-
-  // Procura se existe pelo menos uma torre de spray ativa no tabuleiro
-  const spraysAtivos = defesasColocadas.filter(d => d.tipo === 'sprays' && d.viva);
-  if (spraysAtivos.length === 0) return; 
+  const spraysAtivos = defesasColocadas.filter(
+    d => d.tipo === 'sprays' && d.viva && d.usosRestantes > 0
+  );
+  if (spraysAtivos.length === 0) return;
 
   tempoUltimoDisparoSpray += quantoTempo;
 
   if (tempoUltimoDisparoSpray >= COOLDOWN_SPRAY) {
-    // Dispara a fumaça a partir da posição de cada spray construído no tabuleiro
     for (const spray of spraysAtivos) {
-      if (temInsetoNoAlcance(spray.posX, spray.posY)) {
+      if (spray.usosRestantes > 0 && temInsetoNoAlcance(spray.posX, spray.posY)) {
         disparaSpray(spray.posX, spray.posY);
-        usosRestantesSpray -= 1;
+        spray.usosRestantes -= 1;
         tempoUltimoDisparoSpray = 0;
       }
     }
@@ -1088,6 +1088,9 @@ export function selecionarDefesa(tipo) {
 /**
  * Tenta posicionar a defesa selecionada na posição clicada do tabuleiro
  */
+
+const USOS_SPRAY_POR_TORRE = 10;
+
 export function tentarPosicionarDefesa(xWebGL, yWebGL) {
   // 1. Se nenhuma defesa foi selecionada, ignora
   if (!defesaSelecionada) return false;
@@ -1131,7 +1134,8 @@ export function tentarPosicionarDefesa(xWebGL, yWebGL) {
     posX: posWebGL.x,
     posY: posWebGL.y,
     vida: 5,
-    viva: true
+    viva: true,
+    usosRestantes: defesaSelecionada === 'sprays' ? USOS_SPRAY_POR_TORRE : undefined
   };
 
   defesasColocadas.push(novaDefesa);
