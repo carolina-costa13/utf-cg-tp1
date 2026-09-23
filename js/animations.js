@@ -17,6 +17,10 @@ const DANO_SPRAY_POR_SEGUNDO = 100;
 const OFFSET_BICO_X = 0.2;   // mexa se o bico não estiver centralizado horizontalmente
 const OFFSET_BICO_Y = 0.2; 
 
+const RAIO_VENENO = 0.2;  // distância em que o inseto "chegou perto"
+const USOS_VENENO = 50;  
+const RAIO_VENENO_MOSCA = 0.35;
+
 export const CUSTO_DEFESAS = {
   sapos: 100,
   lagartos: 150,
@@ -32,7 +36,6 @@ export let posXSpray = -0.35;
 export let posYSpray = 0.25;
 
 // Declarando e exportando todas as variáveis de controle de quadros para renderização
-export let frameMosca = 0;
 export let frameFormiga = 0;
 export let frameLingua = 0;
 export let frameLagarto = 0;
@@ -41,18 +44,11 @@ export let frameMoeda = 0;
 export let frameFormigaVermelha = 0;
 
 // Variáveis internas para controle de tempo acumulado
-let tempoAnimacaoMosca = 0;
 let tempoAnimacaoFormiga = 0;
 let tempoAnimacaoLingua = 0;
 let tempoAnimacaoLagarto = 0;
 let tempoAnimacaoBesouro = 0;
 let tempoAnimacaoMoeda = 0;
-
-// MOSCA
-export let posXMosca = 1.2;
-export let posYMosca = 0.4;
-export let vidaMosca = 10;
-export let moscaViva = true;
 
 // BESOURO
 export let posXBesouro = 0.55;
@@ -73,13 +69,14 @@ export const COLUNAS = 7;
 export let tabuleiro = Array.from({ length: LINHAS }, () => Array(COLUNAS).fill(0));
 
 export function atualizaLogica(quantoTempo) {
-  animacaoMosca(quantoTempo);
+  atualizaAnimacaoMoscas(quantoTempo);
   animacaoSapo(quantoTempo);
   animacaoLagarto(quantoTempo);
   animacaoBesouro(quantoTempo);
   animacaoMoeda(quantoTempo);
 
-  atualizaMosca(quantoTempo); 
+  atualizaMoscas(quantoTempo);
+  atualizaHordaMosca(quantoTempo);
   atualizaProjeteis(quantoTempo);
   atualizaParticulasTiro(quantoTempo);
   
@@ -101,6 +98,7 @@ export function atualizaLogica(quantoTempo) {
   atualizaFormigasVermelhas(quantoTempo);
   atualizaBesouros(quantoTempo);
   atualizaFumaca(quantoTempo)
+  atualizaVenenos();
 
   tentarAtivarSpray(quantoTempo);
 
@@ -363,14 +361,16 @@ export function checaColisaoSapo() {
       }
     }
 
-    // 3. Mosca
-    if (moscaViva) {
-      const distMoscaX = posXMosca - posXSapo;
-      const distMoscaY = Math.abs(posYMosca - posYSapo);
-      if (distMoscaX >= 0 && distMoscaX <= alcanceLinguaX && distMoscaY < 0.25) {
-        causarDanoMosca(1);
-      }
+  // 3. Mosca
+  for (const mosca of moscas) {
+    if (!mosca.viva) continue;
+
+    const distMoscaX = Math.abs(alcancePontaLinguaX - mosca.posX);
+    const distMoscaY = Math.abs(posYSapo - mosca.posY);
+    if (distMoscaX < 0.4 && distMoscaY < 0.4) {
+      causarDanoMosca(mosca, 1);
     }
+  }
 
     // 4. Besouro
     for (const besouro of besourosAtivos) {
@@ -383,18 +383,10 @@ export function checaColisaoSapo() {
       }
     }
   }
+
 }
 
 // Animações dos outros animais
-
-
-export function animacaoMosca(quantoTempo) {
-  tempoAnimacaoMosca += quantoTempo;
-  if (tempoAnimacaoMosca >= 0.08) {
-    frameMosca = (frameMosca + 1) % 16;
-    tempoAnimacaoMosca = 0;
-  }
-}
 
 export function animacaoSapo(quantoTempo) {
   tempoAnimacaoLingua += quantoTempo;
@@ -425,15 +417,6 @@ export function animacaoMoeda(quantoTempo) {
   if (tempoAnimacaoMoeda >= 0.12) {
     frameMoeda = (frameMoeda + 1) % 9;
     tempoAnimacaoMoeda = 0;
-  }
-}
-
-export function causarDanoMosca(dano) {
-  if (!moscaViva) return;
-  vidaMosca -= dano;
-  if (vidaMosca <= 0) {
-    vidaMosca = 0;
-    moscaViva = false;
   }
 }
 
@@ -502,17 +485,19 @@ export function checaDanoSapo() {
       }
     }
 
-    // 4. Mosca
-    if (moscaViva) {
-      const distMoscaX = Math.abs(posXMosca - posXSapo);
-      const distMoscaY = Math.abs(posYMosca - posYSapo);
-      if (distMoscaX < raioSapo && distMoscaY < raioSapo) {
-        sapo.vida -= 1;
-        console.log(`A mosca atingiu o Sapo! Vida restante: ${sapo.vida}`);
-        if (sapo.vida <= 0) sapo.viva = false;
-      }
+  // 4. Verificação com a Mosca
+  for (const mosca of moscas) {
+    if (!mosca.viva) continue;
+
+    const distMoscaX = Math.abs(mosca.posX - posXSapo);
+    const distMoscaY = Math.abs(mosca.posY - posYSapo);
+
+    if (distMoscaX < raioSapo && distMoscaY < raioSapo) {
+      causarDanoSapo(1);
+      console.log(`A mosca atingiu o Sapo! Vida restante: ${vidaSapo}`);
     }
   }
+}
 }
 export function causarDanoSapo(dano) {
   if (!sapoVivo) return;
@@ -639,9 +624,10 @@ export function temInsetoNoAlcance(posXBase, posYBase) {
   }
 
   // 2. Checa a mosca se estiver viva
-  if (typeof moscaViva !== 'undefined' && moscaViva) {
-    const dx = posXMosca - bicoX;
-    const dy = posYMosca - bicoY;
+  for (const mosca of moscas) {
+    if (!mosca.viva) continue;
+    const dx = mosca.posX - bicoX;
+    const dy = mosca.posY - bicoY;
     if (Math.hypot(dx, dy) <= RAIO_ALCANCE_SPRAY) {
       return true;
     }
@@ -731,14 +717,14 @@ export function aplicaDanoAreaSpray(posXFumaca, posYFumaca, quantoTempo) {
   }
 
   // 4. Mosca
-  if (typeof moscaViva !== 'undefined' && moscaViva) {
-    const dx = posXMosca - posXFumaca;
-    const dy = posYMosca - posYFumaca;
+  for (const mosca of moscas) {
+    if (!mosca.viva) continue;
+
+    const dx = mosca.posX - posXFumaca;
+    const dy = mosca.posY - posYFumaca;
 
     if (Math.hypot(dx, dy) <= RAIO_ALCANCE_SPRAY) {
-      if (typeof causarDanoMosca === 'function') {
-        causarDanoMosca(DANO_SPRAY_POR_SEGUNDO * quantoTempo);
-      }
+      causarDanoMosca(mosca, DANO_SPRAY_POR_SEGUNDO * quantoTempo);
     }
   }
 }
@@ -769,13 +755,63 @@ export function atualizaFumaca(quantoTempo) {
     }
   }
 }
+
+
+// ==========================================
+// VENENO 
+// ==========================================
+
+function matarInseto(inseto) {
+  // formigas e moscas usam "viva", besouros usam "vivo"
+  if (typeof inseto.viva !== 'undefined') inseto.viva = false;
+  else inseto.vivo = false;
+}
+
+export function atualizaVenenos() {
+  const venenos = defesasColocadas.filter(d => d.tipo === 'venenos' && d.viva);
+  if (venenos.length === 0) return;
+
+  const insetos = [...formigasAtivas,
+                   ...formigasVermelhasAtivas, 
+                   ...besourosAtivos,
+                   ...moscas];
+
+  for (const veneno of venenos) {
+    
+    // cria o contador na primeira vez que vê este veneno
+    if (veneno.usos === undefined){
+      veneno.usos = USOS_VENENO;
+    }
+
+    for (const inseto of insetos) {
+      if (!veneno.viva) break; // já gastou os usos
+
+      if (!estaVivo(inseto)) continue;
+
+      const raio = moscas.includes(inseto) ? RAIO_VENENO_MOSCA : RAIO_VENENO;
+      const dist = Math.hypot(inseto.posX - veneno.posX, inseto.posY - veneno.posY);
+
+      if (dist <= raio) {
+        matarInseto(inseto);
+        veneno.usos -= 1;
+
+        if (veneno.usos <= 0) {
+          veneno.viva = false;
+          tabuleiro[veneno.linha][veneno.coluna] = 0; // libera a célula
+        }
+      }
+    }
+  }
+}
+
+
 // ==========================================
 // BOLO 
 // ==========================================
 /*O que acontece com o bolo ao ser atacado por qualquer inimigo */
 export const posXBolo = -0.65;
 export const posYBolo = 0.0;
-export let vidaBolo = 10;
+export let vidaBolo = 400;
 export let boloVivo = true;
 
 /*Como o bolo não ataca, então só tem essa função, só pode ser atacado*/
@@ -805,28 +841,196 @@ export const torres = [
     // Guarda a função receberDano na torre. Quando é atingido chama ela.
     receberDano: causarDanoBolo
   },
-
-  // {
-  //   nome: 'sapo',
-  //   posX: posXSapo,
-  //   posY: posYSapo,
-  //   get viva() { return sapoVivo; },
-  //   receberDano: causarDanoSapo
-  // },
-
-
 ];
 
+// MOSCA:
+
+// Cada mosca da horda é um objeto com seu próprio estado.
+// Isso substitui as variáveis soltas posXMosca, posYMosca, vidaMosca, moscaViva.
+export let moscas = [];
 
 // ==========================================
-// MOSCA (ataque à distância)
+// MOSCA (cria um objeto mosca)
 // ==========================================
+
+// "Fábrica" de mosca: cria um objeto novo com os valores iniciais.
+// Centralizar aqui evita esquecer de inicializar algum campo quando a gente
+// for dar spawn em várias moscas nas próximas etapas.
+function criaMosca(vidaMaxima = 1, dano = MOSCA_DANO) {
+  return {
+    posX: 1.2,
+    posY: 0.4,
+    vida: vidaMaxima,
+    viva: true,
+
+    // estado de movimento/combate (o que hoje está solto em variáveis globais)
+    olhandoEsquerda: true,
+    atacando: false,
+    atirando: false,
+    alvo: null,
+    tempoCicloTiro: 0,
+    jaDisparou: false,
+
+    // estado de animação
+    espera: 0, // segundos até a mosca começar a se mexer
+    frame: 0,
+    frameTiro: 0,
+    tempoAnimacao: 0,
+
+    // dano que ESSA mosca causa (vai variar por horda)
+    dano, 
+  };
+}
+
+// ==========================================
+// MOSCA (animação das moscas)
+// ==========================================
+
+// Atualiza a pose de "voando" (16 quadros) de cada mosca viva.
+// Só é usada quando a mosca NÃO está atirando (nesse caso quem manda é frameTiro).
+export function atualizaAnimacaoMoscas(quantoTempo) {
+  for (const mosca of moscas) {
+    if (!mosca.viva) continue;
+
+    mosca.tempoAnimacao += quantoTempo;
+    if (mosca.tempoAnimacao >= 0.08) {
+      mosca.frame = (mosca.frame + 1) % 16;
+      mosca.tempoAnimacao -= 0.08; // lembra do bug do "-="? mantemos a versão correta aqui
+    }
+  }
+}
+
+// ==========================================
+// MOSCA (mosca recebendo danos)
+// ==========================================
+
+export function causarDanoMosca(mosca, dano) {
+  if (!mosca.viva) return;
+  mosca.vida -= dano;
+  if (mosca.vida <= 0) {
+    mosca.vida = 0;
+    mosca.viva = false;
+  }
+}
+
+
 /*O canvas vai de -1 a 1, ou seja, a tela tem 2 unidades de largura.
   Então 0.2 por segundo é 10% da tela por segundo, e atravessar a tela 
   inteira leva 10 s.*/
 const MOSCA_VELOCIDADE = 0.2;       
-const MOSCA_ALCANCE = 0.4;          // distância a partir da qual ela para e atira
-const MOSCA_DANO = 1;               // dano de cada projétil
+const MOSCA_ALCANCE = 1;          // distância a partir da qual ela para e atira
+const MOSCA_DANO = 0.01;               // dano de cada projétil
+const MOSCA_VELOCIDADE_ATAQUE = 0.08; // velocidade enquanto atira (mais lenta que a de voo)
+const MOSCA_DISTANCIA_MIN = 0.15;     // para de se aproximar quando chega tão perto do alvo
+
+
+// ==========================================
+// MOSCA (sistema de hordas)
+// ==========================================
+
+export let hordaAtual = 1;
+let primeiraHordaGerada = false;
+const ESPERA_PRIMEIRA_HORDA = 10; 
+const INTERVALO_ENTRE_HORDAS = 20; // segundos de respiro depois que a horda morre, antes da próxima
+const MOSCA_LIMITE_SAIDA_X = 1.6; // passou disso, já saiu da tela e pode ser removida
+let aguardandoProximaHorda = true;
+let tempoEsperaHorda = 0;
+
+// Fibonacci: 1, 1, 2, 3, 5, 8, 13, 21... define quantas moscas nascem na horda n
+function fibonacci(n) {
+  if (n <= 2) return 1;
+  let anterior = 1, atual = 1;
+  for (let i = 3; i <= n; i++) {
+    [anterior, atual] = [atual, anterior + atual];
+  }
+  return atual;
+}
+
+// A cada 3 hordas, o dano de cada mosca sobe
+function danoMoscaNaHorda(horda) {
+  const escaloes = Math.floor((horda - 1) / 3);
+  return MOSCA_DANO + escaloes;
+}
+
+// Sorteia de onde a mosca entra: direita, por cima ou por baixo.
+// Sempre fora da tela (a tela vai de -1 a 1), pra ela "entrar voando".
+function posicaoSpawnMosca() {
+  const lado = Math.random();
+
+  if (lado < 0.4) {
+    // DIREITA: fora da tela, em qualquer altura
+    return {
+      x: 1.2 + Math.random() * 0.3,
+      y: (Math.random() * 2 - 1) * 0.9
+    };
+  }
+
+  // POR CIMA ou POR BAIXO: fora da tela, em qualquer X da direita até o meio (0 a 1)
+  const y = lado < 0.7 ? 1.2 : -1.2;
+  return {
+    x: Math.random() * 1.0,
+    y: y + (y > 0 ? 1 : -1) * Math.random() * 0.2
+  };
+}
+
+function geraHordaMosca(numero) {
+  const quantidade = fibonacci(numero);
+  const dano = danoMoscaNaHorda(numero);
+
+  for (let i = 0; i < quantidade; i++) {
+    const moscaAtual = criaMosca(10, dano); // vida ainda fixa em 10, só o dano escala por enquanto
+
+    moscaAtual.espera = i * 0.8 + Math.random() * 0.5; // cada uma entra um pouco depois da anterior
+
+    const pos = posicaoSpawnMosca();
+    moscaAtual.posX = pos.x;
+    moscaAtual.posY = pos.y; 
+
+    moscas.push(moscaAtual);
+  }
+
+  console.log(`Horda ${numero}: ${quantidade} mosca(s), dano ${dano} cada.`);
+}
+
+// Chamada todo frame por atualizaLogica — cuida do ciclo "morreu tudo -> espera -> próxima horda"
+export function atualizaHordaMosca(quantoTempo) {
+
+  if (!boloVivo) return; // bolo morreu: nenhuma horda nova
+
+  const hordaMorreu = moscas.length > 0 && moscas.every(m => !m.viva);
+
+  if (hordaMorreu && !aguardandoProximaHorda) {
+    aguardandoProximaHorda = true;
+    tempoEsperaHorda = 0;
+    moscas = moscas.filter(m => m.viva); // limpa os cadáveres pra não acumular pra sempre
+  }
+
+  if (aguardandoProximaHorda) {
+    tempoEsperaHorda += quantoTempo;
+
+    const esperaAtual = 
+          primeiraHordaGerada
+              ? INTERVALO_ENTRE_HORDAS
+              : ESPERA_PRIMEIRA_HORDA;
+    
+      if (tempoEsperaHorda >= esperaAtual) {
+        if (primeiraHordaGerada) {
+          hordaAtual += 1;          // da segunda em diante, sobe o número
+        } else {
+          primeiraHordaGerada = true; // a primeira usa hordaAtual = 1 como está
+        }
+
+        geraHordaMosca(hordaAtual);
+
+        aguardandoProximaHorda = false;
+        tempoEsperaHorda = 0;
+      }
+    }
+  }
+
+// ==========================================
+// MOSCA (ataque à distância)
+// ==========================================
 
 // Animação fly_shoot (da mosca atirando): 7 quadros de 83 ms
 const TIRO_TOTAL_FRAMES = 7;
@@ -840,15 +1044,6 @@ const TIRO_CICLO = TIRO_DURACAO_ANIM + TIRO_PAUSA;
 const BOCA_DESLOC_X = 0.12;
 const BOCA_DESLOC_Y = -0.02;
 
-export let moscaOlhandoEsquerda = true;
-export let moscaAtacando = false;   // está no alcance (vai parar de andar e atacar)
-export let moscaAtirando = false;   // está tocando a animação do tiro agora
-export let frameMoscaTiro = 0;
-
-let alvoMosca = null;
-let tempoCicloTiro = 0;
-let jaDisparou = false;
-
 // Essa função é chamada mais a frente.
 function torreMaisProxima(x, y) {
   let melhor = null;
@@ -856,6 +1051,9 @@ function torreMaisProxima(x, y) {
   for (const torre of torres) {
     //Pula as torres mortas
     if (!torre.viva) continue;
+
+    // Ignora torres que já ficaram pra trás — a mosca não dá ré pra atacar
+    if (torre.posX > x) continue;
 
     //Calcula a distância das vivas e pega a menor
     const d = Math.hypot(torre.posX - x, torre.posY - y);
@@ -869,74 +1067,114 @@ function torreMaisProxima(x, y) {
 
 
 //Faz a mosca andar, escolher o alvo e atirar (coração).
-export function atualizaMosca(quantoTempo) {
-  // Se a mosca tá morta, deixa quieto.
-  if (!moscaViva) return;
+export function atualizaMoscas(quantoTempo) {
+  for (const mosca of moscas) {
+      // Se a mosca tá morta, deixa quieto.
+      if (!mosca.viva) continue;
 
-  // Enquanto está atirando numa torre viva, continua nela (um alvo por vez).
-  // Caso contrário, escolhe a torre viva mais próxima.
-  const travadaNoAlvo = moscaAtacando && alvoMosca && alvoMosca.viva;
-  if (!travadaNoAlvo) {
-    alvoMosca = torreMaisProxima(posXMosca, posYMosca);
-    moscaAtacando = false;
+      if (mosca.espera > 0) {
+        mosca.espera -= quantoTempo;
+        continue; // ainda está parada fora da tela
+      }
+
+      // Bolo morreu: para de atacar e vai embora para a direita
+      if (!boloVivo) {
+        mosca.alvo = null;
+        mosca.atacando = false;
+        mosca.atirando = false;
+        mosca.tempoCicloTiro = 0;
+        mosca.jaDisparou = false;
+
+        mosca.posX -= MOSCA_VELOCIDADE * quantoTempo;
+
+        if (Math.abs(mosca.posX) > MOSCA_LIMITE_SAIDA_X) {
+          mosca.viva = false;
+        }
+        continue;
+      }
+
+      // Enquanto está atirando numa torre viva, continua nela (um alvo por vez).
+      // Caso contrário, escolhe a torre viva mais próxima.
+      const travadaNoAlvo = mosca.atacando && mosca.alvo && mosca.alvo.viva;
+      if (!travadaNoAlvo) {
+        mosca.alvo = torreMaisProxima(mosca.posX, mosca.posY);
+        mosca.atacando = false;
+      }
+
+      if (!mosca.alvo) {
+        // sem torres vivas: segue voando pra esquerda
+        mosca.atacando = false;
+        mosca.atirando = false;
+        mosca.olhandoEsquerda = true;
+
+        mosca.posX -= MOSCA_VELOCIDADE * quantoTempo;
+
+        if (mosca.posX < -1.3) {
+          mosca.viva = false;
+        }
+
+        continue; // "continue" no lugar do "return": só pula pra próxima mosca do loop
+      }
+
+      //Calcula a distância da mosca até o seu alvo e vai andando na direção dele.
+      const dx = mosca.alvo.posX - mosca.posX;
+      const dy = mosca.alvo.posY - mosca.posY;
+      const distancia = Math.hypot(dx, dy);
+
+      if (Math.abs(dx) > 0.01) mosca.olhandoEsquerda = dx < 0;
+
+
+      //Se tá longe do alvo, continua aproximando
+      if (distancia > MOSCA_DISTANCIA_MIN) {
+        // ANDAR em direção ao alvo
+        // dentro do alcance ela anda mais devagar, pra dar tempo de atirar
+        const vel = distancia > MOSCA_ALCANCE ? MOSCA_VELOCIDADE : MOSCA_VELOCIDADE_ATAQUE;
+
+
+        // A conta dx / distancia dá a direção com comprimento 1, 
+        // e multiplicando por velocidade × quantoTempo (m/s * s = m) 
+        // você obtém quanto a mosca deve andar neste frame.
+        mosca.posX += (dx / distancia) * vel * quantoTempo;
+        mosca.posY += (dy / distancia) * vel * quantoTempo;
+      }
+
+       // Ainda longe: só voa, sem atirar
+      if (distancia > MOSCA_ALCANCE) {
+        mosca.atacando = false;
+        mosca.atirando = false;
+        mosca.tempoCicloTiro = 0;
+        mosca.jaDisparou = false;
+        continue;
+      }
+
+      // O alvo está no alcance, endão ela deve parar e atirar:
+      // um ciclo = animação do tiro + pausa
+      mosca.atacando = true;
+      mosca.tempoCicloTiro += quantoTempo;
+      if (mosca.tempoCicloTiro >= TIRO_CICLO) {
+        mosca.tempoCicloTiro -= TIRO_CICLO;
+        mosca.jaDisparou = false;
+      }
+
+      mosca.atirando = mosca.tempoCicloTiro < TIRO_DURACAO_ANIM;
+      mosca.frameTiro = Math.min(
+        TIRO_TOTAL_FRAMES - 1,
+        Math.floor(mosca.tempoCicloTiro / TIRO_DURACAO_FRAME)
+      );
+
+      // Solta o projétil uma vez por ciclo, no quadro certo da animação
+      if (mosca.atirando && !mosca.jaDisparou && mosca.frameTiro >= TIRO_FRAME_DISPARO) {
+        disparaProjetil(mosca); // qual mosca atirou.
+        mosca.jaDisparou = true;
+      }
   }
-
-  if (!alvoMosca) {
-    // sem torres vivas: segue voando pra esquerda
-    moscaAtacando = false;
-    moscaAtirando = false;
-    moscaOlhandoEsquerda = true;
-    if (posXMosca > -1.3) posXMosca -= MOSCA_VELOCIDADE * quantoTempo;
-    return;
-  }
-
-  //Calcula a distância da mosca até o seu alvo e vai andando na direção dele.
-  const dx = alvoMosca.posX - posXMosca;
-  const dy = alvoMosca.posY - posYMosca;
-  const distancia = Math.hypot(dx, dy);
-
-  if (Math.abs(dx) > 0.01) moscaOlhandoEsquerda = dx < 0;
-
-
-  //Se tá longe do alvo, continua aproximando
-  if (distancia > MOSCA_ALCANCE) {
-    // ANDAR em direção ao alvo
-    moscaAtacando = false;
-    moscaAtirando = false;
-    tempoCicloTiro = 0;
-    jaDisparou = false;
-    // A conta dx / distancia dá a direção com comprimento 1, 
-    // e multiplicando por velocidade × quantoTempo (m/s * s = m) 
-    // você obtém quanto a mosca deve andar neste frame.
-    posXMosca += (dx / distancia) * MOSCA_VELOCIDADE * quantoTempo;
-    posYMosca += (dy / distancia) * MOSCA_VELOCIDADE * quantoTempo;
-    return;
-  }
-
-  // O alvo está no alcance, endão ela deve parar e atirar:
-  // um ciclo = animação do tiro + pausa
-  moscaAtacando = true;
-  tempoCicloTiro += quantoTempo;
-  if (tempoCicloTiro >= TIRO_CICLO) {
-    tempoCicloTiro -= TIRO_CICLO;
-    jaDisparou = false;
-  }
-
-  moscaAtirando = tempoCicloTiro < TIRO_DURACAO_ANIM;
-  frameMoscaTiro = Math.min(
-    TIRO_TOTAL_FRAMES - 1,
-    Math.floor(tempoCicloTiro / TIRO_DURACAO_FRAME)
-  );
-
-  // Solta o projétil uma vez por ciclo, no quadro certo da animação
-  if (moscaAtirando && !jaDisparou && frameMoscaTiro >= TIRO_FRAME_DISPARO) {
-    disparaProjetil(alvoMosca);
-    jaDisparou = true;
+  if (!boloVivo) {
+    moscas = moscas.filter(m => m.viva); // tira as que já saíram da tela
   }
 }
 
 // ==========================================
-// PROJÉTEIS E PARTÍCULAS DE TIRO
+// MOSCA (projéteis e partículas de tiro)
 // ==========================================
 const PROJETIL_VELOCIDADE = 0.9;
 const PROJETIL_RAIO_ACERTO = 0.1;     // quão perto do centro da torre conta como acerto
@@ -948,17 +1186,18 @@ const PARTICULA_DURACAO_FRAME = 0.08;
 export let projeteis = [];
 export let particulasTiro = [];
 
-function disparaProjetil(alvo) {
-  const direcao = moscaOlhandoEsquerda ? -1 : 1;
+function disparaProjetil(mosca) {
+  const direcao = mosca.olhandoEsquerda ? -1 : 1;
   // De onde sai o projétil
-  const origemX = posXMosca + direcao * BOCA_DESLOC_X;
-  const origemY = posYMosca + BOCA_DESLOC_Y;
+  const origemX = mosca.posX + direcao * BOCA_DESLOC_X;
+  const origemY = mosca.posY + BOCA_DESLOC_Y;
 
   // Cada projétil guarda o objeto torre mais perto
   projeteis.push({
     posX: origemX,
     posY: origemY,
-    alvo: alvo,
+    alvo: mosca.alvo,
+    dano: mosca.dano,
     angulo: 0,
     tempo: 0,
     frame: 0
@@ -967,7 +1206,7 @@ function disparaProjetil(alvo) {
   particulasTiro.push({
     posX: origemX,
     posY: origemY,
-    olhandoEsquerda: moscaOlhandoEsquerda,
+    olhandoEsquerda: mosca.olhandoEsquerda,
     tempo: 0,
     frame: 0
   });
@@ -990,7 +1229,7 @@ export function atualizaProjeteis(quantoTempo) {
 
     // Se chegou perto, acertou. Causa dano no elemento da lista de torres e some
     if (distancia <= PROJETIL_RAIO_ACERTO) {
-      p.alvo.receberDano(MOSCA_DANO);
+      p.alvo.receberDano(p.dano);
       projeteis.splice(i, 1);
       continue;
     }
@@ -1018,6 +1257,7 @@ export function atualizaParticulasTiro(quantoTempo) {
     p.frame = Math.floor(p.tempo / PARTICULA_DURACAO_FRAME);
   }
 }
+
 
 // ==========================================
 // SISTEMA DE MOEDAS
@@ -1053,7 +1293,7 @@ export function verificarCliqueMoeda(xWebGL, yWebGL) {
 
     if (distancia <= RAIO_HITBOX) {
       // 1. Incrementa o dinheiro
-      pontuacaoDinheiro += 50;
+      pontuacaoDinheiro += 200;
       console.log(`Moeda coletada! Total: ${pontuacaoDinheiro}`);
 
       // 2. Remove a moeda da lista para fazê-la sumir da tela
@@ -1073,6 +1313,8 @@ export function atualizaMoedas(quantoTempo) {
     tempoParaProximaMoeda = 0;
   }
 }
+
+
 // ==========================================
 // SISTEMA DE DEFESAS E LOJA
 // ==========================================

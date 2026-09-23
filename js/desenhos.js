@@ -1,13 +1,10 @@
 import { 
   frameFormiga, 
-  frameMosca, 
   frameMoeda, 
   frameLagarto, 
   frameBesouro, 
   frameLingua, 
-  frameFormigaVermelha,  
-  frameMoscaTiro, 
-  moscaViva,
+  frameFormigaVermelha, 
   besouroVivo,
   formigasAtivas,
   formigasVermelhasAtivas,
@@ -15,18 +12,15 @@ import {
   fumacasAtivas,
   posXSpray,
   posYSpray,
-  posXMosca,
-  posYMosca,
-  moscaOlhandoEsquerda,
   posXBolo,
   posYBolo,
   boloVivo,
-  moscaAtirando,
   projeteis,
   particulasTiro,
   moedasAtivas,
   pontuacaoDinheiro,
-  defesasColocadas
+  defesasColocadas,
+  moscas,
 
 } from './animations.js';
 
@@ -347,62 +341,67 @@ export function desenhaBesouro(gl) {
   }
 }
 
-export function desenhaMosca(gl) {
-  if (!moscaViva) return;
+export function desenhaMoscas(gl) {
 
-  // Escolhe a spritesheet: tiro (7 quadros) ou idle (16 quadros)
+  // Fica FORA do loop: são sempre as mesmas 5 "localizações" no shader,
+  // não dependem de qual mosca está sendo desenhada nem do frame atual.
 
-  // Escolha padrão: mosca voando.
-  let textura = texturaMosca
-  let totalFrames = 16 
-  let frame = frameMosca
-
-  // Se a mosca já pode atirar e a textura tá pronta, 
-  // então usa a textura da mosca de 7 frames, ao invés da de 16.
-  if (moscaAtirando && texturaMoscaTiro) {
-    textura = texturaMoscaTiro
-    totalFrames = 7
-    frame = frameMoscaTiro
-  }
-
-
-  /*Arrumando a textura:*/
   // Posição da mosca na tela
   const posicaoLoc = gl.getUniformLocation(programa, 'u_position')
-  gl.uniform2f(posicaoLoc, posXMosca, posYMosca) // x: 0.0 (centro), y: 0.4 (no alto)
-
   // Tamanho do renderizador da mosca
   const tamanhoLoc = gl.getUniformLocation(programa, 'u_size')
-  gl.uniform2f(tamanhoLoc, 0.15, 0.15)
-
-
-  const larguraSprite = 1 / totalFrames //são vários quadros, lado a lado, por isso a divisão.
-  const alturaSprite = 1.0
-
   const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset')
-  gl.uniform2f(texOffsetLoc, frame * larguraSprite, 0.0)
-
   const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize')
-  gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
-
-  // Seleciona a textura
-  gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, textura)
-  
   const texturaLoc = gl.getUniformLocation(programa, 'u_texture')
-  gl.uniform1i(texturaLoc, 0)
-
   // vira a sprite para que ela olhe pra esquerda.
   //a_texcoord.x antes do recorte, então o espelhamento 
   // acontece dentro do quadro, sem trocar de quadro.
   const flipXLoc = gl.getUniformLocation(programa, 'u_flipX')
-  gl.uniform1i(flipXLoc, moscaOlhandoEsquerda ? 1 : 0)
+    
 
-  // Desenha
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+  for (const mosca of moscas) {
+    if (!mosca.viva) continue;
 
-  // IMPORTANTE: desliga o flip, senão o sapo e a moeda (desenhados depois) saem invertidos
-  gl.uniform1i(flipXLoc, 0)
+    // Escolhe a spritesheet: tiro (7 quadros) ou idle (16 quadros)
+
+    // Escolha padrão: mosca voando.
+    let textura = texturaMosca;
+    let totalFrames = 16;
+    let frame = mosca.frame;
+
+    // Se a mosca já pode atirar e a textura tá pronta, 
+    // então usa a textura da mosca de 7 frames, ao invés da de 16.
+    if (mosca.atirando && texturaMoscaTiro) {
+      textura = texturaMoscaTiro;
+      totalFrames = 7;
+      frame = mosca.frameTiro;
+    }
+
+
+    /*Arrumando a textura:*/
+  
+    gl.uniform2f(posicaoLoc, mosca.posX, mosca.posY) // x: 0.0 (centro), y: 0.4 (no alto)
+    gl.uniform2f(tamanhoLoc, 0.15, 0.15)
+
+    const larguraSprite = 1 / totalFrames //são vários quadros, lado a lado, por isso a divisão.
+    const alturaSprite = 1.0
+
+    gl.uniform2f(texOffsetLoc, frame * larguraSprite, 0.0)
+    gl.uniform2f(texSizeLoc, larguraSprite, alturaSprite)
+
+    // Seleciona a textura
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, textura)
+    gl.uniform1i(texturaLoc, 0)
+
+    gl.uniform1i(flipXLoc, mosca.olhandoEsquerda ? 1 : 0)
+
+    // Desenha
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+
+    // IMPORTANTE: desliga o flip, senão o sapo e a moeda (desenhados depois) saem invertidos
+    gl.uniform1i(flipXLoc, 0)
+  }
 }
 
 
@@ -832,7 +831,7 @@ export function desenhaDefesas(gl) {
       desenhaLagarto(gl, defesa.posX, defesa.posY);
     } else if (defesa.tipo === 'sprays') {
       desenhaSpray(gl, defesa.posX, defesa.posY);
-    } else if (defesa.tipo === 'veneno') {
+    } else if (defesa.tipo === 'venenos') {
       desenhaVeneno(gl, defesa.posX, defesa.posY);
     }
   }

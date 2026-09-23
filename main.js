@@ -20,7 +20,7 @@ import {
   desenhaSpray, 
   desenhaLagarto, 
   desenhaBesouro, 
-  desenhaMosca, 
+  desenhaMoscas, 
   desenhaSapo, 
   desenhaMoeda, 
   desenhaFormigaVermelha,
@@ -79,7 +79,7 @@ function desenhaCena(gl) {
   //if (texturaSpray) desenhaSpray(gl);
   //if (texturaLagarto) desenhaLagarto(gl);
   if (texturaBesouro) desenhaBesouro(gl);
-  if (texturaMosca) desenhaMosca(gl);
+  if (texturaMosca) desenhaMoscas(gl);
   //if (texturaSapo) desenhaSapo(gl);
   if (texturaMoeda) desenhaMoeda(gl);
   if (texturaFormigaVermelha) desenhaFormigaVermelha(gl);
