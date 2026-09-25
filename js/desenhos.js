@@ -831,7 +831,7 @@ export function desenhaDefesas(gl) {
     } else if (defesa.tipo === 'lagartos') {
       desenhaLagarto(gl, defesa.posX, defesa.posY);
     } else if (defesa.tipo === 'sprays') {
-      desenhaSpray(gl, defesa.posX, defesa.posY);
+      desenhaSpray(gl, defesa.posX, defesa.posY, 0.08, 0.19, defesa.usosRestantes);
     } else if (defesa.tipo === 'venenos') {
       desenhaVeneno(gl, defesa.posX, defesa.posY);
     }

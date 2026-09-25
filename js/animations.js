@@ -18,7 +18,7 @@ const OFFSET_BICO_X = 0.2;   // mexa se o bico não estiver centralizado horizon
 const OFFSET_BICO_Y = 0.2; 
 
 const RAIO_VENENO = 0.2;  // distância em que o inseto "chegou perto"
-const USOS_VENENO = 50;  
+const USOS_VENENO = 3;  
 const RAIO_VENENO_MOSCA = 0.35;
 
 export let pontuacao = 0;
@@ -183,10 +183,9 @@ export function atualizaFormigas(quantoTempo) {
       const dy = posYBolo - formiga.posY;
       const distancia = Math.hypot(dx, dy);
 
-      if (distancia < 0.05) {
-        causarDanoBolo(1);
-        formiga.viva = false;
-      } else {
+         if (distancia < 0.05) {
+        combateComBolo(formiga, 1);
+        } else {
         const passo = Math.min(formiga.velocidade * quantoTempo, distancia);
         formiga.posX += (dx / distancia) * passo;
         formiga.posY += (dy / distancia) * passo;
@@ -268,8 +267,7 @@ export function atualizaFormigasVermelhas(quantoTempo) {
       const distancia = Math.hypot(dx, dy);
 
       if (distancia < 0.05) {
-        causarDanoBolo(2);
-        formiga.viva = false;
+        combateComBolo(formiga, 2);
         console.log("Formiga Vermelha chegou ao bolo e causou dano!");
       } else {
         const passo = Math.min(formiga.velocidade * quantoTempo, distancia);
@@ -589,9 +587,8 @@ export function atualizaBesouros(quantoTempo) {
       const dy = posYBolo - besouro.posY;
       const distancia = Math.hypot(dx, dy);
 
-      if (distancia < 0.05) {
-        causarDanoBolo(2);
-        besouro.vivo = false;
+       if (distancia < 0.05) {
+        combateComBolo(besouro, 2);
         console.log("Besouro chegou ao bolo e causou dano!");
       } else {
         const passo = Math.min(besouro.velocidade * quantoTempo, distancia);
@@ -833,7 +830,7 @@ export const posYBolo = 0.0;
 export let vidaBolo = 20;
 export let boloVivo = true;
 
-/*Como o bolo não ataca, então só tem essa função, só pode ser atacado*/
+
 export function causarDanoBolo(dano) {
   if (!boloVivo) return;
   vidaBolo -= dano;
@@ -861,6 +858,13 @@ export const torres = [
     receberDano: causarDanoBolo
   },
 ];
+
+function combateComBolo(inseto, danoDoInseto) {
+  if (!boloVivo) return;
+
+  causarDanoBolo(danoDoInseto); // inseto ataca o bolo
+  matarInseto(inseto);          // bolo mata o inseto (usa viva/vivo automaticamente, soma pontuação)
+}
 
 // MOSCA:
 

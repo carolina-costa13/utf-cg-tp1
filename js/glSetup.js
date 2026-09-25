@@ -238,6 +238,11 @@ texturaOverlay = criaTexturaSolida(gl, 0, 0, 0, 180);
 
 export function registraCliqueCanvas(canvas) {
   canvas.addEventListener('click', (event) => {
+
+     if (musicaFundo.paused) {
+      iniciarMusicaFundo();
+    }
+
     const rect = canvas.getBoundingClientRect();
 
     const normalizedX = (event.clientX - rect.left) / rect.width;
@@ -353,10 +358,10 @@ export function iniciarMusicaFundo() {
         console.log("Aguardando interação do usuário para iniciar o áudio:", erro);
     });
 }
-const btnJogar = document.getElementById('btn-jogar'); // Substitua pelo ID do seu botão de início
+const btnJogar = document.getElementById('btn-jogar'); // Substitua pelo ID do botão de início
 if (btnJogar) {
     btnJogar.addEventListener('click', () => {
         iniciarMusicaFundo();
-        // Aqui você também esconde o menu e ativa o seu configuraTudo() / loop do jogo
+        // Aqui você também esconde o menu e ativa o configuraTudo() / loop do jogo
     });
 }
