@@ -1429,7 +1429,7 @@ export function tentarPosicionarDefesa(xWebGL, yWebGL) {
 
 export function reiniciarJogo() {
   // Bolo e sapo
-  vidaBolo = 1;
+  vidaBolo = 20;
   boloVivo = true;
   vidaSapo = 5;
   sapoVivo = true;
