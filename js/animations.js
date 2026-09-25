@@ -21,6 +21,8 @@ const RAIO_VENENO = 0.2;  // distância em que o inseto "chegou perto"
 const USOS_VENENO = 50;  
 const RAIO_VENENO_MOSCA = 0.35;
 
+export let pontuacao = 0;
+
 export const CUSTO_DEFESAS = {
   sapos: 100,
   lagartos: 150,
@@ -82,8 +84,6 @@ export function atualizaLogica(quantoTempo) {
   
   //é como se fosse o relógio do jogo, usado na dificuldade
   tempoJogoTotal += quantoTempo; 
-  
-  tempoJogoTotal += quantoTempo;
 
   // Atualização dos quadros de animação
   tempoAnimacaoFormiga += quantoTempo;
@@ -346,7 +346,10 @@ export function checaColisaoSapo() {
       const distY = Math.abs(formiga.posY - posYSapo);
       if (distX >= 0 && distX <= alcanceLinguaX && distY < 0.2) {
         formiga.vida -= 1;
-        if (formiga.vida <= 0) formiga.viva = false;
+        if (formiga.vida <= 0) {
+          formiga.viva = false;
+          pontuacao += 1;
+        }
       }
     }
 
@@ -357,7 +360,10 @@ export function checaColisaoSapo() {
       const distY = Math.abs(formiga.posY - posYSapo);
       if (distX >= 0 && distX <= alcanceLinguaX && distY < 0.2) {
         formiga.vida -= 1;
-        if (formiga.vida <= 0) formiga.viva = false;
+        if (formiga.vida <= 0){
+          formiga.viva = false;
+          pontuacao += 1;
+        }
       }
     }
 
@@ -365,7 +371,7 @@ export function checaColisaoSapo() {
   for (const mosca of moscas) {
     if (!mosca.viva) continue;
 
-    const distMoscaX = Math.abs(alcancePontaLinguaX - mosca.posX);
+    const distMoscaX = Math.abs(alcanceLinguaX - mosca.posX);
     const distMoscaY = Math.abs(posYSapo - mosca.posY);
     if (distMoscaX < 0.4 && distMoscaY < 0.4) {
       causarDanoMosca(mosca, 1);
@@ -379,7 +385,10 @@ export function checaColisaoSapo() {
       const distY = Math.abs(besouro.posY - posYSapo);
       if (distX >= 0 && distX <= alcanceLinguaX && distY < 0.2) {
         besouro.vida -= 1;
-        if (besouro.vida <= 0) besouro.vivo = false;
+        if (besouro.vida <= 0) {
+          besouro.vivo = false;
+          pontuacao += 1;
+        }
       }
     }
   }
@@ -452,6 +461,7 @@ export function checaDanoSapo() {
       const distX = Math.abs(formiga.posX - posXSapo);
       const distY = Math.abs(formiga.posY - posYSapo);
       if (distX < raioSapo && distY < raioSapo) {
+        pontuacao += 1;
         sapo.vida -= 1;
         formiga.viva = false;
         console.log(`Formiga atingiu o Sapo! Vida restante: ${sapo.vida}`);
@@ -677,6 +687,7 @@ export function aplicaDanoAreaSpray(posXFumaca, posYFumaca, quantoTempo) {
       f.vida -= DANO_SPRAY_POR_SEGUNDO * quantoTempo;
       if (f.vida <= 0) {
         f.viva = false;
+        pontuacao += 1;
         console.log("Formiga eliminada pelo Spray!");
       }
     }
@@ -694,6 +705,7 @@ export function aplicaDanoAreaSpray(posXFumaca, posYFumaca, quantoTempo) {
       fv.vida -= DANO_SPRAY_POR_SEGUNDO * quantoTempo;
       if (fv.vida <= 0) {
         fv.viva = false;
+        pontuacao += 1;
         console.log("Formiga Vermelha eliminada pelo Spray!");
       }
     }
@@ -711,6 +723,7 @@ export function aplicaDanoAreaSpray(posXFumaca, posYFumaca, quantoTempo) {
       b.vida -= DANO_SPRAY_POR_SEGUNDO * quantoTempo;
       if (b.vida <= 0) {
         b.vivo = false;
+        pontuacao += 1;
         console.log("Besouro eliminado pelo Spray!");
       }
     }
@@ -763,8 +776,14 @@ export function atualizaFumaca(quantoTempo) {
 
 function matarInseto(inseto) {
   // formigas e moscas usam "viva", besouros usam "vivo"
-  if (typeof inseto.viva !== 'undefined') inseto.viva = false;
-  else inseto.vivo = false;
+  if (typeof inseto.viva !== 'undefined'){
+    inseto.viva = false;
+    pontuacao += 1;
+  }
+  else{
+    inseto.vivo = false;
+    pontuacao += 1;
+  }
 }
 
 export function atualizaVenenos() {
@@ -811,7 +830,7 @@ export function atualizaVenenos() {
 /*O que acontece com o bolo ao ser atacado por qualquer inimigo */
 export const posXBolo = -0.65;
 export const posYBolo = 0.0;
-export let vidaBolo = 400;
+export let vidaBolo = 20;
 export let boloVivo = true;
 
 /*Como o bolo não ataca, então só tem essa função, só pode ser atacado*/
@@ -910,6 +929,7 @@ export function causarDanoMosca(mosca, dano) {
   if (mosca.vida <= 0) {
     mosca.vida = 0;
     mosca.viva = false;
+    pontuacao += 1;
   }
 }
 
@@ -1406,3 +1426,58 @@ export function tentarPosicionarDefesa(xWebGL, yWebGL) {
   return true;
 }
 
+
+export function reiniciarJogo() {
+  // Bolo e sapo
+  vidaBolo = 1;
+  boloVivo = true;
+  vidaSapo = 5;
+  sapoVivo = true;
+
+  // Pontuação e dinheiro
+  pontuacao = 0;
+  pontuacaoDinheiro = 0;
+
+  // Relógio do jogo e timers de geração
+  tempoJogoTotal = 0;
+  tempoGeracaoFormiga = 0;
+  tempoGeracaoVermelha = 0;
+  tempoGeracaoBesouros = 0;
+  tempoParaProximaMoeda = 0;
+  tempoUltimoDisparoSpray = 0;
+
+  // Timers de animação
+  tempoAnimacaoFormiga = 0;
+  tempoAnimacaoLingua = 0;
+  tempoAnimacaoLagarto = 0;
+  tempoAnimacaoBesouro = 0;
+  tempoAnimacaoMoeda = 0;
+  frameFormiga = 0;
+  frameLingua = 0;
+  frameLagarto = 0;
+  frameBesouro = 0;
+  frameMoeda = 0;
+  frameFormigaVermelha = 0;
+
+  // Esvazia todas as listas (usar .length = 0 preserva a referência do array)
+  formigasAtivas.length = 0;
+  formigasVermelhasAtivas.length = 0;
+  besourosAtivos.length = 0;
+  moscas.length = 0;
+  projeteis.length = 0;
+  particulasTiro.length = 0;
+  fumacasAtivas.length = 0;
+  moedasAtivas.length = 0;
+  defesasColocadas.length = 0;
+
+  // Tabuleiro livre e só o bolo como alvo das torres
+  for (const linha of tabuleiro) linha.fill(0);
+  torres.length = 1;
+  defesaSelecionada = null;
+
+  // Sistema de hordas da mosca
+  hordaAtual = 1;
+  primeiraHordaGerada = false;
+  aguardandoProximaHorda = true;
+  tempoEsperaHorda = 0;
+}

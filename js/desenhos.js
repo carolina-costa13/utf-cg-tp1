@@ -44,11 +44,15 @@ import {
   texturaVida,
   texturaMoedaPlacar,
   texturasCoinCounter,
-  texturaBotoes
+  texturaBotoes,
+  texturaGameOver,
+  texturaBotaoRestart,
 
 } from './textures.js';
 
-import { programa } from './glSetup.js';
+import { programa, texturaOverlay } from './glSetup.js';
+
+export const BOTAO_REINICIAR = { x: 0, y: -0.25, largura: 1, altura: 0.8 };
 
 export const BOTOES_LOJA = [
   { tipo: 'sapos',    x: -0.525, y: -0.85, largura: 0.14, altura: 0.14 },
@@ -447,9 +451,8 @@ export function desenhaProjeteis(gl) {
     gl.uniform2f(texOffsetLoc, p.frame * 0.5, 0.0)
     gl.uniform1f(anguloLoc, p.angulo)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4) // uma função de desenhar por projétil.
+    gl.uniform1f(anguloLoc, 0.0)           // desliga a rotação pros próximos desenhos
   }
-
-  gl.uniform1f(anguloLoc, 0.0)   // desliga a rotação pros próximos desenhos
 }
 
 export function desenhaParticulasTiro(gl) {
@@ -637,10 +640,10 @@ export function desenhaFormigaVermelha(gl) {
 }
 }
 
-export function desenhaBarraVida(gl, vidaAtual, vidaMaxima, tipoCor = 0) {
-  if (typeof texturaHUD === 'undefined' || !texturaHUD) {
-      return;
-    }
+export function desenhaBarraVida(gl, vidaAtual, vidaMaxima, tipoCor = 0, 
+  posX, posY, tamX, tamY) {
+
+  if (!texturaVida) return;
 
   if (typeof programa === 'undefined' || !programa) return;
 
@@ -652,28 +655,26 @@ export function desenhaBarraVida(gl, vidaAtual, vidaMaxima, tipoCor = 0) {
   const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
   const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
 
-  // Mapeamento da Spritesheet (A imagem completa)
-  // A parte das barras ocupa a metade esquerda da imagem
-  const larguraBarraUV = 0.25;  // Largura de uma barra individual em UV
-  const alturaBarraUV = 1 / 24;  // 24 linhas de barras no total
+  // Medidas exatas da imagem (290x290px):
+  const larguraBarraUV = 53 / 290;   // largura de uma barra
+  const alturaBarraUV  = 11 / 290;   // altura de cada "fatia" de estado
+  const margemTopoUV   = 14 / 290;   // margem antes do 1º grupo de cor
+  const alturaGrupoCor = 66 / 290;   // altura de cada bloco de cor (6 fatias)
+
 
   // 1. Calcula qual o estado de preenchimento (0 = vazia, 5 = cheia)
   const percentual = Math.max(0, Math.min(1, vidaAtual / vidaMaxima));
   const nivelVida = Math.round(percentual * 5); // 0, 1, 2, 3, 4, 5
   const indiceEstado = 5 - nivelVida; // Inverte porque o topo do bloco é 'cheia'
 
-  // 2. Escolhe a cor base (Offset das linhas):
-  // 0: Azul Escuro | 1: Azul Claro | 2: Verde Escuro | 3: Verde Claro
-  // 4: Laranja     | 5: Amarelo    | 6: Vermelho     | 7: Roxo
-  const linhaBaseCor = tipoCor * 6; // Cada cor ocupa 6 linhas de variação
-  const linhaFinal = linhaBaseCor + indiceEstado;
 
-  // 3. Define a coluna UV (0 para a 1ª coluna de barras, 0.25 para a 2ª)
-  const colunaUV = (tipoCor % 2 === 1) ? 0.25 : 0.0;
+  // 2. Cada PAR de cor (escuro/claro) ocupa um bloco de 6 fatias
+  const parCor = Math.floor(tipoCor / 2);
+  // 0: Azul | 1: Verde | 2: Laranja/Amarelo | 3: Vermelho/Roxo
 
-  // Coordenadas UV de recorte na textura
-  const texX = colunaUV;
-  const texY = 1.0 - ((linhaFinal + 1) * alturaBarraUV);
+  // 3. Coluna: par (0,2,4,6) = escuro/esquerda, ímpar (1,3,5,7) = claro/direita
+  const texX = (tipoCor % 2 === 1) ? (69 / 290) : (14 / 290);
+  const texY = margemTopoUV + (parCor * alturaGrupoCor) + (indiceEstado * alturaBarraUV);
 
   // Ativa a textura do HUD
   gl.activeTexture(gl.TEXTURE0);
@@ -681,8 +682,8 @@ export function desenhaBarraVida(gl, vidaAtual, vidaMaxima, tipoCor = 0) {
   gl.uniform1i(texturaLoc, 0);
 
   // Posição fixa no canto superior esquerdo da tela (exemplo: -0.7, 0.85)
-  gl.uniform2f(posicaoLoc, -0.7, 0.85); 
-  gl.uniform2f(tamanhoLoc, 0.4, 0.08); // Tamanho da barra no canvas
+  gl.uniform2f(posicaoLoc, posX, posY);
+  gl.uniform2f(tamanhoLoc, tamX, tamY); // Tamanho da barra no canvas
 
   // Passa as coordenadas de corte da textura para o shader
   gl.uniform2f(texOffsetLoc, texX, texY);
@@ -912,5 +913,41 @@ export function desenhaBotoes(gl, texturaBotoes, listaBotoes, defesaSelecionada)
     } else if (btn.tipo === 'venenos' && typeof texturaVeneno !== 'undefined' && texturaVeneno) {
       desenhaVeneno(gl, btn.x, yAjustado, lIcone, aIcone);
     }
+  }
+}
+
+function desenhaQuad(gl, textura, posX, posY, tamX, tamY) {
+  const posicaoLoc = gl.getUniformLocation(programa, 'u_position');
+  const tamanhoLoc = gl.getUniformLocation(programa, 'u_size');
+  const texOffsetLoc = gl.getUniformLocation(programa, 'u_texOffset');
+  const texSizeLoc = gl.getUniformLocation(programa, 'u_texSize');
+  const texturaLoc = gl.getUniformLocation(programa, 'u_texture');
+  const flipXLoc = gl.getUniformLocation(programa, 'u_flipX');
+  const anguloLoc = gl.getUniformLocation(programa, 'u_angle');
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, textura);
+  gl.uniform1i(texturaLoc, 0);
+  gl.uniform2f(posicaoLoc, posX, posY);
+  gl.uniform2f(tamanhoLoc, tamX, tamY);
+  gl.uniform2f(texOffsetLoc, 0, 1);
+  gl.uniform2f(texSizeLoc, 1, -1);
+  gl.uniform1i(flipXLoc, false); // reseta: outro sprite pode ter deixado isso "true"
+  gl.uniform1f(anguloLoc, 0);   // reseta: idem pra rotação
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+
+export function desenhaTelaGameOver(gl, pontuacaoAtual) {
+  // Escurece a tela inteira (tamanho 1,1 cobre de -1 a 1 nos dois eixos)
+  desenhaQuad(gl, texturaOverlay, 0, 0, 1, 1);
+
+  // Imagem "GAME OVER"
+  if (texturaGameOver) desenhaQuad(gl, texturaGameOver, 0, 0.3, 0.5, 0.15);
+
+  const b = BOTAO_REINICIAR;
+  if (texturaBotaoRestart) {
+    desenhaQuad(gl, texturaBotaoRestart, b.x, b.y, b.largura / 2, b.altura / 2);
   }
 }

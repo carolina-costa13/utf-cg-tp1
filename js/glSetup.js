@@ -1,8 +1,16 @@
 export let programa;
 export let vao;
+export let texturaOverlay
 
-import { verificarCliqueMoeda, tentarPosicionarDefesa, selecionarDefesa} from './animations.js';
-import { BOTOES_LOJA } from './desenhos.js';
+import { 
+  verificarCliqueMoeda, 
+  tentarPosicionarDefesa, 
+  selecionarDefesa, 
+  boloVivo, 
+  reiniciarJogo 
+} from './animations.js';
+
+import { BOTOES_LOJA, BOTAO_REINICIAR } from './desenhos.js';
 
 import { 
   carregaTexturaCenario, 
@@ -23,9 +31,11 @@ import {
   carregaTexturaParticulaTiro,
   carregaTexturaCoinCounter,
   carregaTexturaMoedaPlacar,
-  carregaTexturaBotoes
+  carregaTexturaBotoes,
+  carregaTexturaGameOver,
+  criaTexturaSolida,
+  carregaTexturaBotaoRestart
 
-  
 } from './textures.js';
 
  export function configuraTudo() {
@@ -202,6 +212,10 @@ carregaTexturaParticulaTiro(gl)
 carregaTexturaCoinCounter(gl)
 carregaTexturaMoedaPlacar(gl)
 carregaTexturaBotoes(gl)
+carregaTexturaGameOver(gl)
+carregaTexturaBotaoRestart(gl)
+
+texturaOverlay = criaTexturaSolida(gl, 0, 0, 0, 180);
 
 
   // 5. inicia valores para variáveis de estado
@@ -220,6 +234,21 @@ export function registraCliqueCanvas(canvas) {
 
     const xWebGL = normalizedX * 2 - 1;
     const yWebGL = -(normalizedY * 2 - 1);
+
+    if (!boloVivo) {
+      const meiaLargura = BOTAO_REINICIAR.largura / 2;
+      const meiaAltura = BOTAO_REINICIAR.altura / 2;
+
+      if (
+        xWebGL >= BOTAO_REINICIAR.x - meiaLargura &&
+        xWebGL <= BOTAO_REINICIAR.x + meiaLargura &&
+        yWebGL >= BOTAO_REINICIAR.y - meiaAltura &&
+        yWebGL <= BOTAO_REINICIAR.y + meiaAltura
+      ) {
+        reiniciarJogo();
+      }
+      return; // trava qualquer clique em moeda/loja/tabuleiro nesse estado
+    }
 
     // 1. Tenta coletar moeda primeiro caso clique em cima de uma
     const moedaColetada = verificarCliqueMoeda(xWebGL, yWebGL);

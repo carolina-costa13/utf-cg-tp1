@@ -512,3 +512,66 @@ export function carregaTexturaBotoes(gl) {
   imagemBotao.src = "sprites/Buttons/Button_Small.png";
   return texturaBotoes;
 }
+
+/* ==========================================
+   TEXTURA SOLIDA (OVERLAY)
+  ==========================================*/
+  export function criaTexturaSolida(gl, r, g, b, a) {
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+    new Uint8Array([r, g, b, a]));
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  return tex;
+}
+
+/* ==========================================
+   GAMEOVER TEXTURA
+  ==========================================*/
+
+export let texturaGameOver;
+export function carregaTexturaGameOver(gl) {
+  const img = new Image();
+  texturaGameOver = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texturaGameOver);
+
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);  // ← Isso inverte no load
+
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,0]));
+
+
+  img.onload = function () {
+    gl.bindTexture(gl.TEXTURE_2D, texturaGameOver);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+  };
+
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); // ← Reseta depois
+  img.src = "sprites/gameOver.png";
+}
+
+export let texturaBotaoRestart;
+export function carregaTexturaBotaoRestart(gl) {
+  const img = new Image();
+  texturaBotaoRestart = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texturaBotaoRestart);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,0]));
+
+  img.onload = function () {
+    gl.bindTexture(gl.TEXTURE_2D, texturaBotaoRestart);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);  // ← Reseta logo depois
+
+};
+  img.src = "sprites/restart.png";
+}

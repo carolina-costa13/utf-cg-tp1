@@ -9,7 +9,12 @@ import {
   defesasColocadas,
   tentarPosicionarDefesa,
   defesaSelecionada,
-  selecionarDefesa
+  selecionarDefesa,
+  pontuacao,
+  vidaBolo,
+  boloVivo,
+  posXBolo,
+  posYBolo,
 } from './js/animations.js';
 
 import { 
@@ -32,7 +37,8 @@ import {
   desenhaPlacarDinheiro,
   desenhaDefesas,
   desenhaBotoes,
-  BOTOES_LOJA
+  BOTOES_LOJA,
+  desenhaTelaGameOver,
 } from './js/desenhos.js';
 
 import { 
@@ -57,6 +63,9 @@ import {
 } from './js/textures.js';
 
 const canvas = document.getElementById('meuCanvas');
+
+
+const numPontos = document.getElementById('numPontos');
 
 /*Carrega as texturas/imagens*/
 const gl = configuraTudo();
@@ -83,7 +92,7 @@ function desenhaCena(gl) {
   //if (texturaSapo) desenhaSapo(gl);
   if (texturaMoeda) desenhaMoeda(gl);
   if (texturaFormigaVermelha) desenhaFormigaVermelha(gl);
-  if (texturaVida) desenhaBarraVida(gl,vidaSapo,5,6);
+  //if (texturaVida) desenhaBarraVida(gl,vidaSapo,5,6);
   if (texturasFumacaSpray)desenhaFumaca(gl);
 
   if (texturaParticulaTiro) desenhaParticulasTiro(gl);
@@ -92,7 +101,12 @@ function desenhaCena(gl) {
   if(texturasCoinCounter)desenhaPlacarDinheiro(gl, 0.68, 0.85);
   desenhaDefesas(gl);
   if (texturaBotoes) desenhaBotoes(gl, texturaBotoes, BOTOES_LOJA, defesaSelecionada);
+  if (texturaVida && boloVivo) {
+    desenhaBarraVida(gl, vidaBolo, 20, 1, posXBolo + 0.01, posYBolo + 0.25, 0.3, 0.06);
+  }
+  if (texturaMoeda) desenhaMoeda(gl);
 
+  if (!boloVivo) desenhaTelaGameOver(gl, pontuacao);
 }
 
 
@@ -105,8 +119,12 @@ function loopPrincipal(agora) {
   const MAX_DELTA = 0.1; // no máximo ~100ms por frame
   quantoPassou = Math.min(quantoPassou, MAX_DELTA);
 
-  atualizaLogica(quantoPassou);
-  atualizaMoedas(quantoPassou);
+  if (boloVivo) {
+    atualizaLogica(quantoPassou);
+    atualizaMoedas(quantoPassou);
+  }
+  
+  numPontos.textContent = pontuacao;
 
   desenhaCena(gl);
 
