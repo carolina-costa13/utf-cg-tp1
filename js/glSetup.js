@@ -2,12 +2,24 @@ export let programa;
 export let vao;
 export let texturaOverlay
 
+const somDedada = new Audio('audio/Burps and Farts Basic/Farts/Fart_3.wav');
+somDedada.volume = 0.5;
+
+const musicaFundo = new Audio('audio/FunCrafting.wav');
+musicaFundo.loop = true;
+musicaFundo.volume = 0.3;
+
 import { 
   verificarCliqueMoeda, 
   tentarPosicionarDefesa, 
   selecionarDefesa, 
   boloVivo, 
-  reiniciarJogo 
+  reiniciarJogo,
+  causarDanoMosca,
+  moscas,
+  formigasAtivas,
+  formigasVermelhasAtivas,
+  besourosAtivos,
 } from './animations.js';
 
 import { BOTOES_LOJA, BOTAO_REINICIAR } from './desenhos.js';
@@ -54,9 +66,8 @@ import {
     //canvas.addEventListener('click', mouseClicou)
     //document.addEventListener('keydown', teclaPressionada)
       registraCliqueCanvas(canvas)
-    
- 
- 
+      iniciarMusicaFundo()
+
    // 3. cria, compila e linka programa shader
   // 3.1 cria e compila o vertex shader
     const vsCode = `#version 300 es
@@ -271,7 +282,81 @@ export function registraCliqueCanvas(canvas) {
       }
     }
 
-    // 3. Se o botão já foi escolhido antes, o segundo clique aqui posiciona a defesa no tabuleiro
+    // 3. Tenta dar "dedada" (clicar diretamente) em um inimigo no tabuleiro
+    const raioClique = 0.1; // Tamanho da área de clique
+
+    // Função auxiliar para tocar o som rapidamente
+    const tocarSomDedada = () => {
+      somDedada.currentTime = 0;
+      somDedada.play().catch(e => console.log("Áudio bloqueado até interação:", e));
+    };
+
+    // Checa Músicas / Moscas (agora percorrendo o array de moscas)
+    for (const mosca of moscas) {
+      if (!mosca.viva) continue;
+      const distMosca = Math.hypot(xWebGL - mosca.posX, yWebGL - mosca.posY);
+      if (distMosca < raioClique) {
+        causarDanoMosca(mosca, 2); // Aplica dano de 2 na mosca clicada
+        tocarSomDedada();
+        console.log("Dedada na mosca! Vida restante:", mosca.vida);
+        return; // Consome o clique
+      }
+    }
+
+    // Checa Formigas Comuns
+    for (const formiga of formigasAtivas) {
+      if (!formiga.viva) continue;
+      const dist = Math.hypot(xWebGL - formiga.posX, yWebGL - formiga.posY);
+      if (dist < raioClique) {
+        formiga.vida -= 0.5;
+        tocarSomDedada();
+        console.log("Dedada na formiga comum! Vida:", formiga.vida);
+        if (formiga.vida <= 0) formiga.viva = false;
+        return; 
+      }
+    }
+
+    // Checa Formigas Vermelhas
+    for (const formiga of formigasVermelhasAtivas) {
+      if (!formiga.viva) continue;
+      const dist = Math.hypot(xWebGL - formiga.posX, yWebGL - formiga.posY);
+      if (dist < raioClique) {
+        formiga.vida -= 0.5;
+        tocarSomDedada();
+        console.log("Dedada na formiga vermelha! Vida:", formiga.vida);
+        if (formiga.vida <= 0) formiga.viva = false;
+        return;
+      }
+    }
+
+    // Checa Besouros
+    for (const besouro of besourosAtivos) {
+      if (!besouro.vivo) continue;
+      const dist = Math.hypot(xWebGL - besouro.posX, yWebGL - besouro.posY);
+      if (dist < raioClique) {
+        besouro.vida -= 0.5;
+        tocarSomDedada();
+        console.log("Dedada no besouro! Vida:", besouro.vida);
+        if (besouro.vida <= 0) besouro.vivo = false;
+        return;
+      }
+    }
+
+    // 4. Se o botão já foi escolhido antes, o segundo clique aqui posiciona a defesa no tabuleiro
     tentarPosicionarDefesa(xWebGL, yWebGL);
   });
+}
+
+// Função para iniciar a música
+export function iniciarMusicaFundo() {
+    musicaFundo.play().catch(erro => {
+        console.log("Aguardando interação do usuário para iniciar o áudio:", erro);
+    });
+}
+const btnJogar = document.getElementById('btn-jogar'); // Substitua pelo ID do seu botão de início
+if (btnJogar) {
+    btnJogar.addEventListener('click', () => {
+        iniciarMusicaFundo();
+        // Aqui você também esconde o menu e ativa o seu configuraTudo() / loop do jogo
+    });
 }
