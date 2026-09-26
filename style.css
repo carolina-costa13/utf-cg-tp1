@@ -43,3 +43,49 @@ canvas {
 .folha-br { bottom: -10px; right: -10px; transform: rotate(-160deg) scaleX(-1); }
 .folha-meio { top: -13px;  left: 60px;  transform: rotate(-20deg); }
 .folha-meio2 { bottom: -13px;  right: 60px; transform: rotate(20deg) scaleX(-1); }
+
+
+.tela-inicial {
+  position: fixed;
+  inset: 0;
+  z-index: 40; /* mais alto que a tela de game over, pra garantir que fique por cima de tudo */
+  display: flex;
+  align-items: flex-end;   
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  padding-top: 300px;
+
+  background-image: url('assets/CakeDefence.jpg');
+  background-size: cover;       /* preenche a tela toda, cortando o excesso */
+  background-position: center top;  /* mantém o logo centralizado ao cortar */
+  background-repeat: no-repeat;}
+
+.img-tela-inicial {
+  max-width: 80%;
+  max-height: 60vh;
+  image-rendering: pixelated; /* mantém nítido, sem borrar o pixel art */
+}
+
+.btn-jogar {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 32px;
+  color: #fff;
+
+  background: #b8342a;
+  border: 6px solid #f4aeae;
+  padding: 24px 64px;
+  cursor: pointer;
+
+  box-shadow: 8px 8px 0 rgba(0,0,0,0.4);
+}
+
+.btn-jogar:hover {
+  filter: brightness(1.15);
+}
+
+.btn-jogar:active {
+  transform: translate(4px, 4px);
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+}

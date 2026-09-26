@@ -535,8 +535,7 @@ export function carregaTexturaGameOver(gl) {
   const img = new Image();
   texturaGameOver = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, texturaGameOver);
-
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);  // ← Isso inverte no load
+  
 
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,0]));
 
@@ -550,7 +549,6 @@ export function carregaTexturaGameOver(gl) {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
   };
 
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); // ← Reseta depois
   img.src = "sprites/gameOver.png";
 }
 

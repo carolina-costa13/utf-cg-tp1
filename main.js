@@ -62,6 +62,14 @@ import {
   texturaBotoes
 } from './js/textures.js';
 
+let jogoComecou = false;
+
+const telaInicial = document.getElementById('telaInicial');
+document.getElementById('btnJogar').addEventListener('click', () => {
+  telaInicial.style.display = 'none';
+  jogoComecou = true;
+});
+
 const canvas = document.getElementById('meuCanvas');
 
 
@@ -119,7 +127,7 @@ function loopPrincipal(agora) {
   const MAX_DELTA = 0.1; // no máximo ~100ms por frame
   quantoPassou = Math.min(quantoPassou, MAX_DELTA);
 
-  if (boloVivo) {
+  if (jogoComecou && boloVivo) {
     atualizaLogica(quantoPassou);
     atualizaMoedas(quantoPassou);
   }

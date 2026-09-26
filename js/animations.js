@@ -18,7 +18,9 @@ const OFFSET_BICO_X = 0.2;   // mexa se o bico não estiver centralizado horizon
 const OFFSET_BICO_Y = 0.2; 
 
 const RAIO_VENENO = 0.2;  // distância em que o inseto "chegou perto"
-const USOS_VENENO = 3;  
+const RAIO_LAGARTO = 0.25;
+const USOS_VENENO = 3; 
+const USOS_LAGARTO = 50; 
 const RAIO_VENENO_MOSCA = 0.35;
 
 export let pontuacao = 0;
@@ -99,6 +101,7 @@ export function atualizaLogica(quantoTempo) {
   atualizaBesouros(quantoTempo);
   atualizaFumaca(quantoTempo)
   atualizaVenenos();
+  atualizaLagartos();
 
   tentarAtivarSpray(quantoTempo);
 
@@ -766,9 +769,8 @@ export function atualizaFumaca(quantoTempo) {
   }
 }
 
-
 // ==========================================
-// VENENO 
+// LAGARTO 
 // ==========================================
 
 function matarInseto(inseto) {
@@ -782,6 +784,49 @@ function matarInseto(inseto) {
     pontuacao += 1;
   }
 }
+
+export function atualizaLagartos() {
+  const lagartos = defesasColocadas.filter(d => d.tipo === 'lagartos' && d.viva);
+
+  if (lagartos.length === 0) return;
+
+  const insetos = [...formigasAtivas,
+                   ...formigasVermelhasAtivas, 
+                   ...besourosAtivos,
+                   ...moscas];
+
+  for (const lagarto of lagartos) {
+    
+    // cria o contador na primeira vez que vê este lagarto
+    if (lagarto.usos === undefined){
+      lagarto.usos = USOS_LAGARTO;
+    }
+
+    for (const inseto of insetos) {
+      if (!lagarto.viva) break; // já gastou os usos
+
+      if (!estaVivo(inseto)) continue;
+
+      const raio = moscas.includes(inseto) ? RAIO_VENENO_MOSCA : RAIO_LAGARTO;
+      const dist = Math.hypot(inseto.posX - lagarto.posX, inseto.posY - lagarto.posY);
+
+      if (dist <= raio) {
+        matarInseto(inseto);
+        lagarto.usos -= 1;
+
+        if (lagarto.usos <= 0) {
+          lagarto.viva = false;
+          tabuleiro[lagarto.linha][lagarto.coluna] = 0; // libera a célula
+        }
+      }
+    }
+  }
+}
+
+
+// ==========================================
+// VENENO 
+// ==========================================
 
 export function atualizaVenenos() {
   const venenos = defesasColocadas.filter(d => d.tipo === 'venenos' && d.viva);
