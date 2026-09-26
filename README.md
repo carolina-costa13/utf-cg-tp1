@@ -9,8 +9,9 @@ Um jogo estilo Tower Defense desenvolvido em WebGL onde o jogador deve defender 
 * **Julia Meireles Gontijo**
   * Contato profissional: juliameirelesgontijo@gmail.com
 ## (c) Media Kit
-*(Cole aqui os links ou adicione prints da sua gameplay)*
-- ![Print do Jogo 1](caminho/para/print1.png)
+- ![Menu Principal do Jogo](MediaKit/menu.png)
+- ![Ação de Jogo e Defesas](MediaKit/gameplay.png)
+- ![Tela de Game Over](MediaKit/gameover.png)
 
 ## (d) Opcionais
 Relativas à apresentação do jogo e gráficos:
@@ -47,6 +48,11 @@ Implementação criativa: qualquer implementação que não fuja muito do pedido
   * *Mosca* — Criado por Croomfolk ([Link para a fonte](https://opengameart.org/content/fly-creature-animated))
   * *Barra de vida* — Criado por Markus Darius ([Link para a fonte](https://markusdarius.itch.io/health-bars-gemstones))
   * *Veneno* — Criado por victordelima ([Link para a fonte](https://opengameart.org/content/16-bit-rpg-potion-pack))
-  * *Mais um Recurso* — Criado por OutroAutor ([Link para a fonte](https://exemplo.com))
+  * *Placar de Moedas* — Criado por DisplayName1166 ([Link para a fonte](https://displayname1166.itch.io/pixel-art-gui-assets))
+  * *Cenário* — ([Link para a fonte](https://store.epicgames.com/news/plants-vs-zombies-replanted-roguelike-multiplayer-classic-tower-defense?lang=nl))
+  * *Botão de Restart* — Criado por DisplayName1166 ([Link para a fonte](https://www.magnific.com/free-vector/colorful-pixel-art-8bit-start-pause-back-sign-buttons-vector-set-pixelated-video-game-icons_426931455.htm#fromView=keyword&page=1&position=39&uuid=4f97865d-6328-4851-b852-1bf5af7af73d&track=ais_hybrid&query=Pixel+button+sprite))
+  * *Game Over* — ([Link para a fonte](https://gamecriticas.wordpress.com/tag/game-over/))
+  
+
              
              

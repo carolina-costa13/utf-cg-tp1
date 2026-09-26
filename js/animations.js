@@ -315,7 +315,7 @@ export function webGLParaMatriz(x, y) {
   return { linha, coluna };
 }
 
-const raioSapo = 0.12; // Raio de colisão do corpo do Sapo
+const raioSapo = 0.1; // Raio de colisão do corpo do Sapo
 
 
 // ==========================================
